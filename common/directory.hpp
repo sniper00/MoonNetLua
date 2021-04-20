@@ -10,6 +10,10 @@ namespace fs = std::experimental::filesystem;
 namespace fs = std::filesystem;
 #endif
 
+#if TARGET_PLATFORM == PLATFORM_MAC
+#include <mach-o/dyld.h>
+#endif
+
 namespace moon
 {
     class directory
@@ -57,6 +61,11 @@ namespace moon
 #if TARGET_PLATFORM == PLATFORM_WINDOWS
             char temp[MAX_PATH];
             auto len = GetModuleFileName(NULL, temp, MAX_PATH);
+#elif TARGET_PLATFORM == PLATFORM_MAC
+            char temp[1024];
+            uint32_t len = 1024;
+            if(_NSGetExecutablePath(temp, &len) != 0)
+                throw std::runtime_error("_NSGetExecutablePath Failed");
 #else
             char temp[1024];
             auto len = readlink("/proc/self/exe", temp, 1024);
