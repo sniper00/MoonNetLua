@@ -364,9 +364,10 @@ namespace moon
     {
         std::string req;
         req.append("[\n");
-        req.append(moon::format(R"({"id":0, "socket":%zu, "timer":%zu})",
+        req.append(moon::format(R"({"id":0, "socket":%zu, "timer":%zu, "log":%zu})",
             socket_num(),
-            timer_.size()
+            timer_.size(),
+            logger_.size()
         ));
         for (auto& w : workers_)
         {

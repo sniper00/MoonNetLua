@@ -7,6 +7,7 @@
 #include <string>
 #include <cstring>
 #include <iostream>
+#include <charconv>
 
 namespace moon
 {
@@ -236,6 +237,21 @@ namespace moon
             readpos_ -= n;
             auto* buff = reinterpret_cast<T*>(std::addressof(*begin()));
             memcpy(buff, Indata, n);
+            return true;
+        }
+
+        template<typename T, typename =  std::enable_if_t<std::is_arithmetic_v<T>>>
+        bool write_chars(T value)
+        {
+            prepare(32);
+            auto* b = data() + size();
+            auto* e = b + 32;
+            auto res = std::to_chars(b, e, value);
+            if (res.ec != std::errc())
+            {
+                return false;
+            }
+            commit(res.ptr - b);
             return true;
         }
 

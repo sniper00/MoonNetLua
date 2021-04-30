@@ -94,6 +94,7 @@ namespace moon
             buf->commit(2 + offset);
             buf->write_back(s.data(), s.size());
             buf->write_back("\n", 1);
+            ++size_;
             log_queue_.push_back(buf);
         }
 
@@ -155,6 +156,11 @@ namespace moon
                 ofs_->close();
                 ofs_ = nullptr;
             }
+        }
+
+        size_t size() const
+        {
+            return size_.load();
         }
     private:
         size_t format_header(char* buf, LogLevel level, uint64_t serviceid) const
@@ -226,6 +232,7 @@ namespace moon
                     {
                         ofs_->write(it->data(), it->size());
                     }
+                    --size_;
                 }
                 if (ofs_)
                 {
@@ -254,6 +261,7 @@ namespace moon
 
         bool enable_console_ = true;
         std::atomic<state> state_;
+        std::atomic_uint32_t size_ = 0;
         std::atomic<LogLevel> level_;
         std::unique_ptr<std::ofstream > ofs_;
         std::thread thread_;

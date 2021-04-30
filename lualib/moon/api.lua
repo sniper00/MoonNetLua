@@ -26,6 +26,7 @@ end
 ---@param data string
 ---@return string
 function core.md5(data)
+    ignore_param(data)
 end
 
 ---convert c-string(char* and size) to lua-string
@@ -59,6 +60,7 @@ end
 ---@param lv string @DEBUG, INFO, WARN, ERROR
 ---@return integer
 function core.set_loglevel(lv)
+    ignore_param(lv)
 end
 
 --- get log level
@@ -96,7 +98,7 @@ end
 ---@param header string
 ---@param sessionid integer
 function core.send(sender, receiver, data, header, sessionid)
-    ignore_param(sender, receiver)
+    ignore_param(sender, receiver, data, header, sessionid)
 end
 
 --- remove a service
@@ -157,7 +159,7 @@ end
 --- set lua callback
 ---@param fn fun(msg:userdata,ptype:integer)
 function core.callback(fn)
-
+    ignore_param(fn)
 end
 
 --- get server time(milliseconds)
@@ -239,7 +241,7 @@ end
 ---@param fp string
 ---@param all boolean
 function fs.remove(fp, all)
-    ignore_param(fp)
+    ignore_param(fp, all)
 end
 
 ---@return string
@@ -301,11 +303,11 @@ end
 ---@param flag integer|nil
 ---@return boolean
 function asio.write(fd, data, flag)
-    ignore_param(fd, data)
+    ignore_param(fd, data, flag)
 end
 
 ---@param fd integer
----@param m lightuserdata @ message*
+---@param m userdata @ message*
 ---@return boolean
 function asio.write_message(fd, m)
     ignore_param(fd, m)

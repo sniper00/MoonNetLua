@@ -305,6 +305,23 @@ end
 
 local listenfd
 
+function M.start(fd, timeout)
+    socket.settimeout(fd, timeout)
+    moon.async(function()
+        while true do
+            local ok,errmsg = pcall(session_handler,fd)
+            if not ok then
+                if M.error then
+                    M.error(fd, errmsg)
+                else
+                    print("httpserver session error",errmsg)
+                end
+                return
+            end
+        end
+    end)--async
+end
+
 function M.listen(host,port,timeout)
     assert(not listenfd,"http server can only listen port once.")
     listenfd = socket.listen(host, port, moon.PTYPE_TEXT)
@@ -316,26 +333,9 @@ function M.listen(host,port,timeout)
                 print("httpserver accept",err)
                 return
             end
-            socket.settimeout(fd, timeout)
-            moon.async(function()
-                while true do
-                    local ok,errmsg = pcall(session_handler,fd)
-                    if not ok then
-                        if M.error then
-                            M.error(fd, errmsg)
-                        else
-                            print("httpserver session error",errmsg)
-                        end
-                        return
-                    end
-                end
-            end)--async
+            M.start(fd, timeout)
         end--while
     end)
-
-    setmetatable(M, {__gc = function()
-        socket.close(listenfd)
-    end})
 end
 
 function M.on( path, cb )

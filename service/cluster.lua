@@ -218,7 +218,7 @@ local function cluster_service()
                     moon.error("not connected cluster")
                 else
                     --CASE1:connect failed, mode-call, 返回错误信息
-                    moon.response("lua", header.from_addr, header.session, false, "connect failed")
+                    moon.response("lua", header.from_addr, header.session, false, "connect failed:"..tostring(header.to_node))
                 end
             end
         end)

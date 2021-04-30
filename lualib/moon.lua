@@ -8,7 +8,6 @@ require("base.class")
 
 ---@type core
 local core = require("mooncore")
-local json = require("json")
 local seri = require("seri")
 
 local pairs = pairs
@@ -19,8 +18,6 @@ local setmetatable = setmetatable
 local tremove = table.remove
 local tointeger = math.tointeger
 local traceback = debug.traceback
-
-local jencode = json.encode
 
 local co_create = coroutine.create
 local co_running = coroutine.running
@@ -153,7 +150,7 @@ end
 
 moon.make_response = make_response
 
----@param msg lightuserdata @message*
+---@param msg userdata @message*
 ---@param PTYPE string
 local function _default_dispatch(msg, PTYPE)
     local p = protocol[PTYPE]

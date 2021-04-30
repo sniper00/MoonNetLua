@@ -257,6 +257,7 @@ local function request( method, baseaddress, path, content, header, keepalive)
 end
 
 function M.settimeout(v)
+    assert(type(v)=="number", "httpclient settimeout need integer param")
     timeout = v
 end
 

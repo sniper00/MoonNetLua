@@ -1,18 +1,13 @@
 #pragma once
 #include "platform_define.hpp"
 #include "common/string.hpp"
-
-#if defined(__GNUC__) && !defined(__clang__)
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#else
 #include <filesystem>
-namespace fs = std::filesystem;
-#endif
 
 #if TARGET_PLATFORM == PLATFORM_MAC
 #include <mach-o/dyld.h>
 #endif
+
+namespace fs = std::filesystem;
 
 namespace moon
 {

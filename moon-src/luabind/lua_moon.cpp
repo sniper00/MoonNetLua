@@ -125,6 +125,10 @@ static int lmoon_log(lua_State* L)
 {
     lua_service* S = (lua_service*)get_ptr(L, LMOON_GLOBAL);
     auto level = (moon::LogLevel)luaL_checkinteger(L, 1);
+    if (S->logger()->get_level() < level)
+    {
+        return 0;
+    }
     int n = lua_gettop(L);  /* number of arguments */
     int i;
     buffer buf;
@@ -353,6 +357,8 @@ static int lmoon_getenv(lua_State* L)
     lua_service* S = (lua_service*)get_ptr(L, LMOON_GLOBAL);
     std::string_view name = luaL_check_stringview(L, 1);
     std::string value = S->get_server()->get_env(std::string{ name });
+    if (value.empty())
+        return 0;
     lua_pushlstring(L, value.data(), value.size());
     return 1;
 }
@@ -538,6 +544,17 @@ static int message_redirect(lua_State* L)
     return 0;
 }
 
+static int lmi_collect(lua_State* L)
+{
+    (void)L;
+#ifdef MOON_ENABLE_MIMALLOC
+    bool force = (luaL_opt(L, lua_toboolean, 2, 1)!=0);
+    mi_collect(force);
+#endif
+    return 0;
+}
+
+
 extern "C"
 {
     int LUAMOD_API luaopen_moon(lua_State* L)
@@ -571,6 +588,7 @@ extern "C"
             { "clone", message_clone },
             { "release", message_release },
             { "redirect", message_redirect},
+            { "collect", lmi_collect},
             {NULL,NULL}
         };
 

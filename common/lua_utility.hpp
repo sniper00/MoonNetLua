@@ -43,24 +43,27 @@ namespace moon
         return lua_toboolean(L, index);
     }
 
-    inline int require_cmodule(lua_State* L) 
-    {
-        const char* name = luaL_checkstring(L, 1);
-        lua_CFunction f = (lua_CFunction)lua_touserdata(L, 2);
-        luaL_requiref(L, name, f, 0);
-        return 0;
-    }
-
     inline bool requiref(lua_State* L, const char* name, lua_CFunction f)
     {
-        lua_pushcfunction(L, require_cmodule);
+        struct protect_call
+        {
+            static int require_cmodule(lua_State* L)
+            {
+                const char* name = luaL_checkstring(L, 1);
+                lua_CFunction f = (lua_CFunction)lua_touserdata(L, 2);
+                luaL_requiref(L, name, f, 0);
+                return 0;
+            }
+        };
+
+        lua_pushcfunction(L, protect_call::require_cmodule);
         lua_pushstring(L, name);
         lua_pushlightuserdata(L, (void*)f);
         if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
             lua_pop(L, 1);
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
   
     template<class LuaArrayView>
