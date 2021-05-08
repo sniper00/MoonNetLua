@@ -40,12 +40,8 @@ namespace moon
                     auto &chr = value[i];
                     if (chr == '%' && i + 2 < value.size()) {
                         auto hex = value.substr(i + 1, 2);
-                        auto decoded_chr = moon::string_convert<char>(hex, ec, 16);
-                        if (ec!= std::errc())
-                        {
-                            return result;
-                        }
-                        result += decoded_chr;
+                        auto decoded_chr = moon::string_convert<uint8_t>(hex, ec, 16);
+                        result += static_cast<char>(decoded_chr);
                         i += 2;
                     }
                     else if (chr == '+')

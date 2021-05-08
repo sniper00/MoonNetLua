@@ -14,7 +14,7 @@ static int lrand_range(lua_State *L)
     int64_t v_max = (int64_t)luaL_checkinteger(L, 2);
     if (v_min > v_max)
     {
-        return luaL_error(L, "Invalue random.rand_range params.");
+        return luaL_error(L, "argument error: #1 > #2");
     }
     auto res = moon::rand_range(v_min, v_max);
     lua_pushinteger(L, res);

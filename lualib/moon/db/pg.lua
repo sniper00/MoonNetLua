@@ -485,11 +485,9 @@ end
 ---@param sql userdata|string @ userdata cpp message pointer:sql string
 ---@return pg_result
 function pg.query(self, sql)
-    local sqlstr = ""
     if type(sql) == "string" then
         send_message(self, MSG_TYPE.query, {sql, NULL})
     else
-        sqlstr = moon.decode(sql, "Z")
         socket.write_message(self.sock, sql)
     end
     local row_desc, data_rows, err_msg
@@ -509,19 +507,8 @@ function pg.query(self, sql)
         elseif MSG_TYPE.error == _exp_0 then
             err_msg = msg
         elseif MSG_TYPE.command_complete == _exp_0 then
-            local ok, next_result = xpcall(format_query_result, debug.traceback,  row_desc, data_rows, msg)
-            if not ok then
-                moon.error(sqlstr, #data_rows)
-                moon.error(next_result)
-                local time = moon.time()
-                for i,rrr in ipairs(data_rows) do
-                    io.writefile("pgerr.sql"..time.."_"..i, sqlstr)
-                    io.writefile("pgerr.err"..time.."_"..i, next_result)
-                    io.writefile("pgerr.data"..time.."_"..i, rrr)
-                end
-                assert(false,"pgerr")
-            end
-            -- local next_result = format_query_result(row_desc, data_rows, command_complete)
+
+            local next_result = format_query_result(row_desc, data_rows, msg)
             num_queries = num_queries + 1
             if num_queries == 1 then
                 result = next_result
@@ -542,8 +529,6 @@ function pg.query(self, sql)
                 notifications = {}
             end
             insert(notifications, parse_notification(msg))
-        else
-            moon.warn("pg recv",t, msg)
         end
     end
     if err_msg then
