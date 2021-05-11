@@ -4,19 +4,24 @@ local sharetable = require("sharetable")
 
 local conf = ... or {}
 
-local file = "sharetable_data.lua"
+local name = "sharedata"
 
 if conf.agent then
     local data
     local command = {}
 
     command.LOAD = function()
-        data = sharetable.query(file)
+        local res = sharetable.queryall()
+        for k, v in pairs(res) do
+            print(k, v)
+        end
+        data = res[name]
         print_r(data)
+        return true
     end
 
     command.UPDATE = function()
-        data = sharetable.query(file)
+        data = sharetable.query(name..".lua")
         print_r(data)
     end
 
@@ -33,7 +38,7 @@ if conf.agent then
         end
     end)
 else
-    local content1 = [[
+    local content_old = [[
         local M = {
             a = 1,
             b = "hello",
@@ -44,7 +49,7 @@ else
         return M
     ]]
 
-    local content2 = [[
+    local content_new = [[
         local M = {
             a = 2,
             b = "world",
@@ -54,35 +59,35 @@ else
         }
         return M
     ]]
+
     local agent = 0
     moon.async(function()
-        io.writefile(file, content1)
+
+        io.writefile("./table/"..name..".lua", content_old)
 
         moon.new_service("lua",{
             unique = true,
             name = "sharetable",
-            file = "../service/sharetable.lua"
+            file = "../service/sharetable.lua",
+            dir = "./table"
         })
-
-        print(sharetable.loadfile(file))
 
         agent =  moon.new_service(
             "lua",
             {
                 name = "agent",
-                file = "start_by_config/sharetable_example.lua",
+                file = "start_by_config/sharetable_example_dir.lua",
                 agent = true
             }
         )
 
         print(moon.co_call("lua", agent, "LOAD"))
-        io.writefile(file, content2)
-        print(sharetable.loadfile(file))
 
+        io.writefile("./table/"..name..".lua", content_new)
+        print(sharetable.loadfile(name..".lua"))
         print(moon.co_call("lua", agent, "UPDATE"))
 
         moon.remove_service(agent)
     end)
-
 end
 

@@ -156,11 +156,6 @@ switch[7] = function ()
     services = {
         {
             unique = true,
-            name = "sharetable",
-            file = "../service/sharetable.lua"
-        },
-        {
-            unique = true,
             name = "sharetable_example",
             file = "start_by_config/sharetable_example.lua"
         }
@@ -168,6 +163,16 @@ switch[7] = function ()
 end
 
 switch[8] = function ()
+    services = {
+        {
+            unique = true,
+            name = "sharetable_example",
+            file = "start_by_config/sharetable_example_dir.lua"
+        }
+    }
+end
+
+switch[9] = function ()
     services = {
         {
             unique = true,
@@ -194,7 +199,7 @@ switch[8] = function ()
     }
 end
 
-switch[9] = function ()
+switch[10] = function ()
     services = {
         {
             unique = true,
@@ -238,6 +243,9 @@ moon.shutdown(function()
         for _, addr in ipairs(addrs) do
             moon.remove_service(addr)
         end
+
+        moon.remove_service(moon.queryservice("sharetable"))
+
         moon.quit()
     end)
 end)

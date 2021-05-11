@@ -8,17 +8,25 @@ static int lfs_listdir(lua_State* L)
 {
     std::string_view dir = luaL_check_stringview(L, 1);
     int depth = (int)luaL_optinteger(L, 2, 0);
-    luaL_optstring(L, 3, "");
+    const char* ext = luaL_optstring(L, 3, nullptr);
     int idx = 0;
     lua_createtable(L, 32, 0);
-    directory::traverse_folder(dir, depth, [L, &idx](const fs::path& path, bool)->bool {
-        if (idx == 0)
+    directory::scan_dir(dir, depth, [L, &idx, ext](const fs::path& path, bool isdir)->bool {
+        if (nullptr != ext)
         {
-            
+            if (!isdir && path.extension().string() == ext)
+            {
+                std::string v = path.string();
+                lua_pushlstring(L, v.data(), v.size());
+                lua_rawseti(L, -2, ++idx);
+            }
         }
-        std::string v = path.string();
-        lua_pushlstring(L, v.data(), v.size());
-        lua_rawseti(L, -2, ++idx);
+        else
+        {
+            std::string v = path.string();
+            lua_pushlstring(L, v.data(), v.size());
+            lua_rawseti(L, -2, ++idx);
+        }
         return true;
         });
     return 1;

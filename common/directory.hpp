@@ -77,10 +77,43 @@ namespace moon
         }
 
         //THandler bool(const fs::path& path,bool dir)
-        template<typename THandler>
-        static void traverse_folder(const std::string_view& dir, int depth, THandler&&handler)
+        template<typename Handler>
+        static void scan_dir(const std::string_view& dir, int max_depth, const Handler& handler)
         {
-            traverse_folder_imp(fs::absolute(dir), depth, std::forward<THandler>(handler));
+            struct do_scan
+            {
+                int depth = 0;
+                void operator()(const fs::path& path, const Handler& handler)
+                {
+                    if (depth < 0)
+                    {
+                        return;
+                    }
+
+                    std::error_code ec;
+                    if (!fs::exists(path, ec))
+                    {
+                        return;
+                    }
+
+                    depth--;
+
+                    for (auto& p : fs::directory_iterator(path))
+                    {
+                        if (!handler(p.path(), fs::is_directory(p, ec)))
+                        {
+                            break;
+                        }
+                        if (fs::is_directory(p, ec))
+                        {
+                             operator()(p.path(), handler);
+                        }
+                    }
+                }
+            };
+
+            do_scan d{ max_depth };
+            d(dir, handler);
         }
 
         static bool create_directory(const std::string& dir)
@@ -110,7 +143,7 @@ namespace moon
             std::vector<std::string> searchdir = moon::split<std::string>(path, ";");
             for (const auto& v : searchdir)
             {
-                traverse_folder(v, depth, [&result, &filename](const fs::path& p, bool)
+                scan_dir(v, depth, [&result, &filename](const fs::path& p, bool)
                     {
                         if (p.filename().string() == filename)
                         {

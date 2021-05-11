@@ -28,6 +28,9 @@ local function sharetable_service()
 	end
 
     function sharetable.loadfile(source, sessionid, filename, ...)
+        if conf.dir then
+            filename = fs.join(conf.dir, filename)
+        end
 		close_matrix(files[filename])
 		local m = core.matrix("@" .. filename, ...)
 		files[filename] = m
@@ -68,6 +71,9 @@ local function sharetable_service()
 	end
 
 	function sharetable.query(source, sessionid, filename)
+        if conf.dir then
+            filename = fs.join(conf.dir, filename)
+        end
 		local m = files[filename]
 		if m == nil then
 			moon.response("lua", source, sessionid)
@@ -76,6 +82,15 @@ local function sharetable_service()
 		local ptr = query_file(source, filename)
 		moon.response("lua", source, sessionid, ptr)
 	end
+
+    function sharetable.queryall(source, sessionid)
+        local all_ptr = {}
+        for filename in pairs(files) do
+            local _, name = fs.split(filename)
+            all_ptr[name] = query_file(source, filename)
+        end
+        moon.response("lua", source, sessionid, all_ptr)
+    end
 
 	function sharetable.close(source)
 		local list = clients[source]
@@ -88,7 +103,7 @@ local function sharetable_service()
 					if ref.count == 0 then
 						if files[ref.filename] ~= ref.matrix then
 							-- It's a history version
-							moon.error(string.format("Delete a version (%s) of %s", ptr, ref.filename))
+							moon.warn(string.format("Delete a version (%s) of %s", ptr, ref.filename))
 							ref.matrix:close()
 							matrix[ptr] = nil
 						end
@@ -106,22 +121,16 @@ local function sharetable_service()
     moon.dispatch("lua",function(msg)
         local sender, sessionid, buf = moon.decode(msg, "SEB")
         local cmd, sz, len = unpack_one(buf)
-		local fn = sharetable[cmd]
-		if fn then
-			fn(sender, sessionid, unpack(sz, len))
-		end
+		sharetable[cmd](sender, sessionid, unpack(sz, len))
 	end)
 
+    ---sharetable service's 'files' use fs.join(conf.dir, filename)
 	if conf.dir then
-        local conf_files = {}
-        local list = fs.listdir(conf.dir)
+        local list = fs.listdir(conf.dir, 0,".lua")
         for _,file in ipairs(list) do
-            if not fs.isdir(file) and fs.ext(file) == ".lua" then
-                sharetable.loadfile(0,0,file)
-				conf_files[fs.stem(file)] = file
-            end
+            local _, name = fs.split(file)
+            sharetable.loadfile(0,0, name)
         end
-		moon.set_env_pack("STATIC_CONF_INDEX", conf_files)
 	end
 end
 
@@ -130,48 +139,39 @@ if conf and conf.name then
 	return
 end
 
-local function report_close()
-	local addr = moon.queryservice("sharetable")
-    if addr >0 then
-        moon.raw_send("lua", addr,"", seri.packs("close"))
+local function load_service(t, key)
+	if key == "address" then
+		t.address = moon.queryservice("sharetable")
+		return t.address
+	else
+		return nil
+	end
+end
+
+local function report_close(t)
+	local addr = rawget(t, "address")
+    if addr then
+        moon.send("lua", addr, "close")
 	end
 end
 
 local sharetable =  setmetatable ( {} , {
+    __index = load_service,
 	__gc = report_close,
 })
 
-local address = 0
-local static_conf_index
-
-local function sharetable_address()
-	if address == 0 then
-		address = moon.queryservice("sharetable")
-		static_conf_index = moon.get_env_unpack("STATIC_CONF_INDEX")
-	end
-	return address
-end
-
 function sharetable.loadfile(filename, ...)
-	local addr = sharetable_address()
-	return moon.co_call( "lua", addr, "loadfile", filename, ...)
+	return moon.co_call( "lua", sharetable.address, "loadfile", filename, ...)
 end
 
 function sharetable.loadstring(filename, source, ...)
-	local addr = sharetable_address()
-	return moon.co_call( "lua", addr, "loadstring", filename, source, ...)
+	return moon.co_call( "lua", sharetable.address, "loadstring", filename, source, ...)
 end
 
 local RECORD = {}
---async
+---filename: xxx.lua
 function sharetable.query(filename)
-	local addr = sharetable_address()
-	local path = filename
-	if static_conf_index then
-		path = static_conf_index[filename]
-	end
-	assert(path)
-	local newptr, err = moon.co_call( "lua", addr, "query", path)
+	local newptr, err = moon.co_call( "lua", sharetable.address, "query", filename)
 	if newptr then
 		local t = core.clone(newptr)
 		local map = RECORD[filename]
@@ -183,6 +183,23 @@ function sharetable.query(filename)
 		return t
     end
     return newptr, err
+end
+
+function sharetable.queryall()
+    local conf_ptr,err = moon.co_call( "lua", sharetable.address, "queryall")
+    assert(conf_ptr,err)
+    local tbconf = {}
+    for filename, newptr in pairs(conf_ptr) do
+        local t = core.clone(newptr)
+		local map = RECORD[filename]
+		if not map then
+			map = {}
+			RECORD[filename] = map
+		end
+        map[t] = true
+        tbconf[fs.stem(filename)] = t
+    end
+    return tbconf
 end
 
 local pairs = pairs
