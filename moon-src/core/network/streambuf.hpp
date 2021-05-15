@@ -58,14 +58,14 @@ namespace moon
         const_buffers_type data() const noexcept
         {
             if (nullptr == buffer_) return asio::buffer(asio::const_buffer(nullptr,0));
-            return asio::buffer(asio::const_buffer(buffer_->data(), buffer_->size()));
+            return asio::const_buffer(buffer_->data(), buffer_->size());
         }
 
         mutable_buffers_type prepare(std::size_t n)
         {
             if (nullptr == buffer_) return asio::buffer(asio::mutable_buffer(nullptr, 0));
             buffer_->prepare(n);
-            return asio::buffer(asio::mutable_buffer(buffer_->data() + buffer_->size(), n));
+            return asio::buffer(buffer_->data() + buffer_->size(), n);
         }
 
         void commit(std::size_t n)

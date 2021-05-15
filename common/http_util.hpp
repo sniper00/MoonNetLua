@@ -78,18 +78,18 @@ namespace moon
                     return result;
 
                 std::size_t name_pos = 0;
-                auto name_end_pos = std::string::npos;
-                auto value_pos = std::string::npos;
+                auto name_end_pos = std::string_view::npos;
+                auto value_pos = std::string_view::npos;
                 for (std::size_t c = 0; c < query_string.size(); ++c) {
                     if (query_string[c] == '&') {
-                        auto name = query_string.substr(name_pos, (name_end_pos == std::string::npos ? c : name_end_pos) - name_pos);
+                        auto name = query_string.substr(name_pos, (name_end_pos == std::string_view::npos ? c : name_end_pos) - name_pos);
                         if (!name.empty()) {
-                            auto value = value_pos == std::string::npos ? std::string() : query_string.substr(value_pos, c - value_pos);
+                            auto value = value_pos == std::string_view::npos ? std::string_view{} : query_string.substr(value_pos, c - value_pos);
                             result.emplace(std::move(name), percent::decode(value));
                         }
                         name_pos = c + 1;
-                        name_end_pos = std::string::npos;
-                        value_pos = std::string::npos;
+                        name_end_pos = std::string_view::npos;
+                        value_pos = std::string_view::npos;
                     }
                     else if (query_string[c] == '=') {
                         name_end_pos = c;
@@ -99,7 +99,7 @@ namespace moon
                 if (name_pos < query_string.size()) {
                     auto name = query_string.substr(name_pos, name_end_pos - name_pos);
                     if (!name.empty()) {
-                        auto value = value_pos >= query_string.size() ? std::string() : query_string.substr(value_pos);
+                        auto value = value_pos >= query_string.size() ? std::string_view{} : query_string.substr(value_pos);
                         result.emplace(std::move(name), percent::decode(value));
                     }
                 }

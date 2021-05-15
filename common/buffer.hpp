@@ -418,7 +418,7 @@ namespace moon
                 if (readable != 0)
                 {
                     assert(readpos_ >= headreserved_);
-                    std::memcpy(data_ + headreserved_, data_ + readpos_, readable);
+                    std::memmove(data_ + headreserved_, data_ + readpos_, readable);
                 }
                 readpos_ = headreserved_;
                 writepos_ = readpos_ + readable;
