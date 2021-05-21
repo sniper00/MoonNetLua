@@ -271,7 +271,7 @@ int main(int argc, char* argv[])
         conf.name = "bootstrap";
         conf.source = fs::path(bootstrap).filename().string();
         server_->new_service("lua", conf, 0, 0);
-        server_->set_unique_service("bootstrap", 0x01000001);
+        server_->set_unique_service("bootstrap", BOOTSTRAP_ADDR);
 
         server_->run();
     }

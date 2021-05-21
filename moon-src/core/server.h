@@ -55,6 +55,8 @@ namespace moon
 
         state get_state() const;
 
+        void set_state(state st);
+
         std::time_t now(bool sync = false);
 
         uint32_t service_count() const;
@@ -105,7 +107,7 @@ namespace moon
 
         void wait();
     private:
-        volatile int signalcode_ = 0;
+        volatile int stopcode_ = 0;
         std::atomic<state> state_ = state::unknown;
         std::atomic<uint32_t> fd_seq_ = 1;
         std::time_t now_ = 0;

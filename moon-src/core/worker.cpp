@@ -26,35 +26,18 @@ namespace moon
         socket_ = std::make_unique<moon::socket>(server_, this, io_ctx_);
 
         thread_ = std::thread([this]() {
-            state_.store(state::ready, std::memory_order_release);
             CONSOLE_INFO(server_->logger(), "WORKER-%u START", workerid_);
             io_ctx_.run();
             socket_->close_all();
             services_.clear();
             CONSOLE_INFO(server_->logger(), "WORKER-%u STOP", workerid_);
-            });
+        });
 
-        while (state_.load(std::memory_order_acquire) == state::init)
-        {
-            std::this_thread::yield();
-        }
     }
 
     void worker::stop()
     {
         asio::post(io_ctx_, [this] {
-            if (auto s = state_.load(std::memory_order_acquire); s == state::stopping || s == state::stopped)
-            {
-                return;
-            }
-
-            if (services_.empty())
-            {
-                state_.store(state::stopped, std::memory_order_release);
-                return;
-            }
-            state_.store(state::stopping, std::memory_order_release);
-
             message msg;
             msg.set_type(PTYPE_SHUTDOWN);
             for (auto& it : services_)
@@ -73,22 +56,12 @@ namespace moon
         }
     }
 
-    bool worker::stoped() const
-    {
-        return (state_.load(std::memory_order_acquire) == state::stopped);
-    }
-
-    void worker::add_service(std::string service_type, service_conf conf, uint32_t creatorid, int32_t sessionid)
+    void worker::new_service(std::string service_type, service_conf conf, uint32_t creatorid, int32_t sessionid)
     {
         count_.fetch_add(1, std::memory_order_release);
         asio::post(io_ctx_, [this, service_type = std::move(service_type), conf = std::move(conf), creatorid, sessionid](){
             do
             {
-                if (state_.load(std::memory_order_acquire) != state::ready)
-                {
-                    break;
-                }
-
                 size_t counter = 0;
                 uint32_t serviceid = 0;
                 do
@@ -125,16 +98,14 @@ namespace moon
 
                 if (!s->init(conf))
                 {
+                    if (serviceid == BOOTSTRAP_ADDR)
+                    {
+                        server_->set_state(state::stopping);
+                    }
                     break;
                 }
-
                 s->ok(true);
-
-                auto res = services_.emplace(serviceid, std::move(s));
-                if (!res.second)
-                {
-                    break;
-                }
+                services_.emplace(serviceid, std::move(s));
 
                 if (0 != sessionid)
                 {
@@ -175,17 +146,17 @@ namespace moon
                     buf->write_back(content.data(), content.size());
                     server_->broadcast(serviceid, buf, header, PTYPE_SYSTEM);
                 }
+
+                if (serviceid == BOOTSTRAP_ADDR)
+                {
+                    server_->set_state(state::stopping);
+                }
             }
             else
             {
                 server_->response(sender, "worker::remove_service "sv, moon::format("service [%08X] not found", serviceid), sessionid, PTYPE_ERROR);
             }
-
-            if (services_.size() == 0 && (state_.load() == state::stopping))
-            {
-                state_.store(state::stopped, std::memory_order_release);
-            }
-            });
+         });
     }
 
     asio::io_context& worker::io_context()

@@ -35,7 +35,7 @@ namespace moon
 
         uint32_t id() const;
 
-        void add_service(std::string service_type, service_conf conf, uint32_t creatorid, int32_t sessionid);
+        void new_service(std::string service_type, service_conf conf, uint32_t creatorid, int32_t sessionid);
 
         void send(message_ptr_t&& msg);
 
@@ -54,14 +54,11 @@ namespace moon
         void stop();
 
         void wait();
-
-        bool stoped() const;
     private:
         void handle_one(service*& ser, message_ptr_t&& msg);
 
         service* find_service(uint32_t serviceid) const;
     private:
-        std::atomic<state> state_ = state::init;
         std::atomic_bool shared_ = true;
         std::atomic_uint32_t count_ = 0;
         std::atomic_uint32_t mqsize_ = 0;

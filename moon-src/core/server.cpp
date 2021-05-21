@@ -40,42 +40,45 @@ namespace moon
         asio::io_context io_context;
         asio::steady_timer timer(io_context);
         asio::error_code ignore;
+        bool stop_once = false;
 
         state_.store(state::ready, std::memory_order_release);
         while (true)
         {
             now_ = time::now();
 
-            if (signalcode_ < 0 )
+            if (stopcode_ < 0 )
             {
                 break;
             }
 
-            state old = state::ready;
-            if (signalcode_>0 && state_.compare_exchange_strong(old
-                , state::stopping
-                , std::memory_order_acquire))
+            if (stopcode_ > 0 && !stop_once)
             {
-                CONSOLE_WARN(logger(), "Received signal code %d", signalcode_);
+                stop_once = true;
+                CONSOLE_WARN(logger(), "Received signal code %d", stopcode_);
                 for (auto iter = workers_.rbegin(); iter != workers_.rend(); ++iter)
                 {
                     (*iter)->stop();
                 }
             }
 
-            size_t alive = workers_.size();
-            for (const auto& w : workers_)
+            if (state_.load(std::memory_order_acquire) == state::stopping)
             {
-                if (w->stoped())
+                size_t alive = workers_.size();
+                for (const auto& w : workers_)
                 {
-                    --alive;
+                    if (w->count_.load(std::memory_order_acquire) == 0)
+                    {
+                        --alive;
+                    }
+                }
+
+                if (0 == alive)
+                {
+                    break;
                 }
             }
 
-            if (0 == alive)
-            {
-                break;
-            }
             timer_.update(now_);
             timer.expires_after(std::chrono::milliseconds(1));
             timer.wait(ignore);
@@ -83,9 +86,9 @@ namespace moon
         wait();
     }
 
-    void server::stop(int  signalcode)
+    void server::stop(int stopcode)
     {
-        signalcode_ = signalcode;
+        stopcode_ = stopcode;
     }
 
     log* server::logger() const
@@ -107,6 +110,11 @@ namespace moon
     state server::get_state() const
     {
         return state_.load(std::memory_order_acquire);
+    }
+
+    void server::set_state(state st)
+    {
+        state_.store(st, std::memory_order_release);
     }
 
     std::time_t server::now(bool sync)
@@ -140,7 +148,7 @@ namespace moon
         uint32_t min_count_workerid = 0;
         for (const auto& w : workers_)
         {
-            auto n = w->count_.load();
+            auto n = w->count_.load(std::memory_order_acquire);
             if (w->shared() && n < min_count)
             {
                 min_count = n;
@@ -153,7 +161,7 @@ namespace moon
             min_count = std::numeric_limits<uint32_t>::max();
             for (const auto& w : workers_)
             {
-                auto n = w->count_.load();
+                auto n = w->count_.load(std::memory_order_acquire);
                 if (n < min_count)
                 {
                     min_count = n;
@@ -205,7 +213,7 @@ namespace moon
         {
             w = next_worker();
         }
-        w->add_service(std::move(service_type), std::move(conf), creatorid, sessionid);
+        w->new_service(std::move(service_type), std::move(conf), creatorid, sessionid);
     }
 
     void server::remove_service(uint32_t serviceid, uint32_t sender, int32_t sessionid)
@@ -376,7 +384,7 @@ namespace moon
                 w->id(),
                 w->cpu_cost_,
                 w->mqsize_.load(),
-                w->count_.load()
+                w->count_.load(std::memory_order_acquire)
             );
             w->cpu_cost_ = 0;
             req.append(v);
