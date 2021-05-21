@@ -151,7 +151,6 @@ local function do_request(baseaddress, keepalive, req)
     end
 
     if not socket.write(fd, seri.concat(req)) then
-        fd = nil
         goto TRY_AGAIN
     end
 
@@ -163,9 +162,12 @@ local function do_request(baseaddress, keepalive, req)
 
     if response.socket_error then
         socket.close(fd)
-        fd = nil
-        if tostring(response.socket_error):find("timeout") then
+        response.socket_error = tostring(response.socket_error)
+        if response.socket_error:find("timeout") then
             return false, "read timeout"
+        end
+        if response.socket_error == "EOF" then
+            return false, "eof"
         end
         goto TRY_AGAIN
     end
