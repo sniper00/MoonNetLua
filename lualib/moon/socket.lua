@@ -18,6 +18,12 @@ local flag_ws_text = 16
 local flag_ws_ping = 32
 local flag_ws_pong = 64
 
+local supported_protocol = {
+    [moon.PTYPE_TEXT] = true,
+    [moon.PTYPE_SOCKET] = true,
+    [moon.PTYPE_SOCKET_WS] = true
+}
+
 ---@class socket : asio
 local socket = core
 
@@ -45,6 +51,7 @@ end
 ---@param protocol integer
 ---@param timeout integer
 function socket.connect(host, port, protocol, timeout)
+    assert(supported_protocol[protocol],"not support")
     timeout = timeout or 0
     local sessionid = make_response()
     connect(host, port, id, protocol, sessionid, timeout)
@@ -56,6 +63,7 @@ function socket.connect(host, port, protocol, timeout)
 end
 
 function socket.sync_connect(host, port, protocol)
+    assert(supported_protocol[protocol],"not support")
     local fd = connect(host, port, id, protocol, 0, 0)
     if fd == 0 then
         return nil,"connect failed"
