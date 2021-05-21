@@ -117,79 +117,80 @@ void socket::accept(uint32_t fd, int32_t sessionid, uint32_t owner)
     });
 }
 
-int socket::connect(const std::string& host, uint16_t port, uint32_t owner, uint8_t type, int32_t sessionid, int32_t timeout)
+uint32_t socket::connect(const std::string& host, uint16_t port, uint32_t owner, uint8_t type, int32_t sessionid, uint32_t millseconds)
 {
-    try
+    if (0 == sessionid)
     {
-        asio::ip::tcp::resolver resolver(ioc_);
-        asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(host, std::to_string(port));
-
-        auto c = make_connection(owner, type);
-
-        if (0 == sessionid)
+        try
         {
+            asio::ip::tcp::resolver resolver(ioc_);
+            asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(host, std::to_string(port));
+            auto c = make_connection(owner, type);
             asio::connect(c->socket(), endpoints);
             c->fd(server_->nextfd());
             connections_.emplace(c->fd(), c);
-            asio::post(ioc_, [c]() {
-                c->start(false);
-             });
+            asio::post(ioc_, [c]() {c->start(false);});
             return c->fd();
         }
-        else
-        {
-            if (timeout > 0)
-            {
-                std::shared_ptr<asio::steady_timer> connect_timer = std::make_shared<asio::steady_timer>(ioc_);
-                connect_timer->expires_after(std::chrono::milliseconds(timeout));
-                connect_timer->async_wait([this, c, owner, sessionid, host, port, connect_timer](const asio::error_code & e) {
-                    if (e)
-                    {
-                        CONSOLE_ERROR(server_->logger(), "connect %s:%d timer error %s", host.data(), port, e.message().data());
-                        return;
-                    }
-                    if (c->fd() == 0)
-                    {
-                        c->close();
-                        response(0, owner, std::string_view{}, moon::format("connect %s:%d timeout", host.data(), port), sessionid, PTYPE_ERROR);
-                    }
-                });
-            }
-
-            asio::async_connect(c->socket(), endpoints,
-                [this, c, host, port, owner, sessionid](const asio::error_code& e, const asio::ip::tcp::endpoint&)
-            {
-                if (!e)
-                {
-                    c->fd(server_->nextfd());
-                    connections_.emplace(c->fd(), c);
-                    c->start(false);
-                    response(0, owner, std::to_string(c->fd()), std::string_view{}, sessionid, PTYPE_TEXT);
-                }
-                else
-                {
-                    if (c->socket().is_open())
-                    {
-                        response(0, owner, std::string_view{}, moon::format("connect %s:%d failed: %s(%d)", host.data(), port, e.message().data(), e.value()), sessionid, PTYPE_ERROR);
-                    }
-                }
-            });
-        }
-    }
-    catch (asio::system_error& e)
-    {
-        if (sessionid == 0)
+        catch (asio::system_error& e)
         {
             CONSOLE_WARN(server_->logger(), "connect %s:%d failed: %s(%d)", host.data(), port, e.code().message().data(), e.code().value());
         }
-        else
-        {
-            asio::post(ioc_, [this, host, port, owner, sessionid, e]() {
-                response(0, owner, std::string_view{}
-                    , moon::format("connect %s:%d failed: %s(%d)", host.data(), port, e.code().message().data(), e.code().value())
-                    , sessionid, PTYPE_ERROR);
+    }
+    else
+    {
+        std::shared_ptr<asio::ip::tcp::resolver> resolver = std::make_shared<asio::ip::tcp::resolver>(ioc_);
+        resolver->async_resolve(host, std::to_string(port),
+            [this, millseconds, type, owner, sessionid, host, port, resolver](const asio::error_code& ec, asio::ip::tcp::resolver::results_type results)
+            {
+                if (!ec)
+                {
+                    auto c = make_connection(owner, type);
+                    std::shared_ptr<asio::steady_timer> timer;
+                    if (millseconds > 0)
+                    {
+                        timer = std::make_shared<asio::steady_timer>(ioc_);
+                        timer->expires_after(std::chrono::milliseconds(millseconds));
+                        timer->async_wait([this, c, owner, sessionid, host, port, timer](const asio::error_code& ec) {
+                            if (!ec)
+                            {
+                                c->close();
+                                response(0, owner, std::string_view{}, moon::format("connect %s:%d: timeout", host.data(), port), sessionid, PTYPE_ERROR);
+                            }
+                            });
+                    }
+
+                    asio::async_connect(c->socket(), results,
+                        [this, c, host, port, owner, sessionid, timer](const asio::error_code& ec, const asio::ip::tcp::endpoint&)
+                        {
+                            if (timer)
+                            {
+                                try {
+                                    timer->cancel();
+                                }
+                                catch (...) {
+                                }
+                            }
+
+                            if (!ec)
+                            {
+                                c->fd(server_->nextfd());
+                                connections_.emplace(c->fd(), c);
+                                c->start(false);
+                                response(0, owner, std::to_string(c->fd()), std::string_view{}, sessionid, PTYPE_TEXT);
+                            }
+                            else
+                            {
+                                if(c->socket().is_open())
+                                    response(0, owner, std::string_view{}, moon::format("connect %s:%d: %s(%d)", host.data(), port, ec.message().data(), ec.value()), sessionid, PTYPE_ERROR);
+                            }
+                        });
+                }
+                else
+                {
+                    response(0, owner, std::string_view{}, moon::format("resolve %s:%d: %s(%d)", host.data(), port, ec.message().data(), ec.value()), sessionid, PTYPE_ERROR);
+                }
             });
-        }
     }
     return 0;
 }
@@ -216,12 +217,6 @@ bool socket::write(uint32_t fd, buffer_ptr_t data, buffer_flag flag)
     }
     data->set_flag(flag);
     return iter->second->send(std::move(data));
-}
-
-bool socket::write_message(uint32_t fd, void * m)
-{
-    message* msg = (message*)m;
-    return write(fd, *msg);
 }
 
 bool socket::close(uint32_t fd)
@@ -265,11 +260,11 @@ void socket::close_all()
     }
 }
 
-bool socket::settimeout(uint32_t fd, int v)
+bool socket::settimeout(uint32_t fd, uint32_t seconds)
 {
     if (auto iter = connections_.find(fd); iter != connections_.end())
     {
-        iter->second->settimeout(v);
+        iter->second->settimeout(seconds);
         return true;
     }
     return false;
