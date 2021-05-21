@@ -190,7 +190,7 @@ namespace moon
                 recvtime_ = now();
 
                 size_t num_additional_bytes = sbuf->size() - bytes_transferred;
-                auto ec = handshake(sbuf);
+                auto ec = handshake(sbuf, bytes_transferred);
                 if (!ec)
                 {
                     check_recv_buffer(DEFAULT_RECV_BUFFER_SIZE);
@@ -339,13 +339,13 @@ namespace moon
             });
         }
 
-        std::error_code handshake(const std::shared_ptr<asio::streambuf>& buf)
+        std::error_code handshake(const std::shared_ptr<asio::streambuf>& buf, size_t n)
         {
             std::string_view method;
             std::string_view ignore;
             std::string_view version;
             http::case_insensitive_multimap_view header;
-            if(!http::request_parser::parse(std::string_view{ reinterpret_cast<const char*>(buf->data().data()), buf->size() }
+            if(!http::request_parser::parse(std::string_view{ reinterpret_cast<const char*>(buf->data().data()), n }
                 , method
                 , ignore
                 , ignore
@@ -354,6 +354,8 @@ namespace moon
             {
                 return make_error_code(moon::error::ws_bad_http_header);
             }
+
+            buf->consume(n);
 
             if (version<"1.0" || version>"1.1")
             {

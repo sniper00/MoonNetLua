@@ -229,7 +229,7 @@ local function cluster_service()
             moon.sleep(5000)
             for _,senders in pairs(send_watch) do
                 for key, t in pairs(senders) do
-                    if moon.time() - t > 10 then
+                    if moon.time() - t > 30 then
                         local sender = key&0xFFFFFFFF
                         local sessionid = (key>>32)
                         moon.response("lua", sender, -sessionid, false, "cluster:socket read timeout")
