@@ -169,8 +169,6 @@ local function cluster_service()
         return true
     end
 
-    httpc.settimeout(1000)
-
     function command.Request(msg)
         ---@type cluster_header
         local header = unpack_one(moon.decode(msg, "B"))
@@ -188,7 +186,11 @@ local function cluster_service()
             data = moon.decode(msg, "Z")
         else
             data = moon.decode(msg, "Z")
-            local response, err = httpc.get(conf.etc_host, conf.etc_path.."?node="..tostring(header.to_node))
+
+            local response, err = httpc.get(conf.etc_host,{
+                path = conf.etc_path.."?node="..tostring(header.to_node)
+            })
+
             if not response or response.status_code ~= "200 OK" then
                 moon.error(response and response.content or err)
                 moon.response("lua", header.from_addr, header.session, false, "target not run cluster:"..tostring(header.to_node))
@@ -229,7 +231,7 @@ local function cluster_service()
             moon.sleep(5000)
             for _,senders in pairs(send_watch) do
                 for key, t in pairs(senders) do
-                    if moon.time() - t > 30 then
+                    if moon.time() - t > 10 then
                         local sender = key&0xFFFFFFFF
                         local sessionid = (key>>32)
                         moon.response("lua", sender, -sessionid, false, "cluster:socket read timeout")

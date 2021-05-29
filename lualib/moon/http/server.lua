@@ -170,9 +170,10 @@ local routers = {}
 local function read_chunked(fd)
 
     local chunkdata = {}
+    local content_length = 0
 
     while true do
-        local data, err = socket.readline(fd, "\r\n")
+        local data, err = socket.readline(fd, "\r\n", 64)
         assert(data,err)
         local length = tonumber(data,"16")
         if not length then
@@ -183,18 +184,24 @@ local function read_chunked(fd)
             break
         end
 
+        content_length = content_length + length
+
+        if M.content_max_len and content_length > M.content_max_len then
+            error(strfmt( "content length %d, limit %d", content_length, M.content_max_len ))
+        end
+
         if length >0 then
             data, err = socket.read(fd, length)
             assert(data,err)
             tbinsert( chunkdata, data )
-            data, err = socket.readline(fd, "\r\n")
+            data, err = socket.readline(fd, "\r\n", 2)
             assert(data,err)
         elseif length <0 then
             error("Invalid response body")
         end
     end
 
-    local  data, err = socket.readline(fd, "\r\n")
+    local  data, err = socket.readline(fd, "\r\n", 2)
     if not data then
         return false,err
     end
@@ -206,7 +213,6 @@ local traceback = debug.traceback
 
 local function request_handler(fd, request)
     local response = http_response.new()
-    local conn_type = request.header["Connection"]
 
     if static_content then
         local request_path = request.path
@@ -214,7 +220,7 @@ local function request_handler(fd, request)
         if static_src then
             response:write_header("Content-Type", static_src.mime)
             response:write(static_src.bin)
-            if conn_type == "close" then
+            if request.header["Connection"] == "close" then
                 socket.write_then_close(fd, seri.concat(response:tb()))
             else
                 socket.write(fd, seri.concat(response:tb()))
@@ -240,7 +246,7 @@ local function request_handler(fd, request)
         response:write(string.format("Cannot %s %s", request.method, request.path))
     end
 
-    if conn_type == "close" then
+    if request.header["Connection"] == "close" then
         socket.write_then_close(fd, seri.concat(response:tb()))
     else
         socket.write(fd, seri.concat(response:tb()))
@@ -281,7 +287,6 @@ local function session_handler(fd)
         end
 
         if M.content_max_len and content_length> M.content_max_len then
-            socket.close(fd)
             error(strfmt( "content length %d, limit %d",content_length,M.content_max_len ))
         end
 
@@ -311,6 +316,7 @@ function M.start(fd, timeout)
         while true do
             local ok,errmsg = pcall(session_handler,fd)
             if not ok then
+                socket.close(fd)
                 if M.error then
                     M.error(fd, errmsg)
                 else

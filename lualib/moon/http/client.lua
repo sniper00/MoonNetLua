@@ -121,15 +121,18 @@ end
 
 local M = {}
 
-local timeout  = 0
+local default_connect_timeout = 1000
 
-local proxyaddress = nil
+local default_read_timeout = 10000
 
 local keep_alive_host = {}
 
 local max_pool_num = 10
 
-local function do_request(baseaddress, keepalive, req)
+---@param options HttpOptions
+local function do_request(baseaddress, options, req)
+    options.connect_timeout = options.connect_timeout or default_connect_timeout
+    options.read_timeout = options.read_timeout or default_read_timeout
 
 ::TRY_AGAIN::
     local fd, err
@@ -141,13 +144,16 @@ local function do_request(baseaddress, keepalive, req)
         fd = table.remove(pool)
     end
 
+    local newconn = false
     if not fd then
         local host, port = parse_host(baseaddress, 80)
-        fd, err = socket.connect(host, port,  moon.PTYPE_TEXT, timeout)
+        fd, err = socket.connect(host, port,  moon.PTYPE_TEXT, options.connect_timeout)
         if not fd then
             return false ,err
         end
-        socket.settimeout(fd, timeout//1000)
+        local read_timeout = options.read_timeout or 0
+        socket.settimeout(fd, read_timeout//1000)
+        newconn = true
     end
 
     if not socket.write(fd, seri.concat(req)) then
@@ -162,17 +168,16 @@ local function do_request(baseaddress, keepalive, req)
 
     if response.socket_error then
         socket.close(fd)
-        response.socket_error = tostring(response.socket_error)
-        if response.socket_error:find("timeout") then
-            return false, "read timeout"
+        if response.socket_error == "TIMEOUT" then
+            return false, response.socket_error
         end
-        if response.socket_error == "EOF" then
-            return false, "eof"
+        if newconn and response.socket_error == "EOF" then
+            return false, response.socket_error
         end
         goto TRY_AGAIN
     end
 
-    if not keepalive then
+    if not options.keepalive then
         socket.close(fd)
     else
         if response.header["connection"] == "close" then
@@ -188,29 +193,33 @@ local function do_request(baseaddress, keepalive, req)
     return ok, response
 end
 
-local function request( method, baseaddress, path, content, header, keepalive)
+---@param method string
+---@param baseaddress string
+---@param options HttpOptions
+---@param content string
+local function request( method, baseaddress, options, content)
 
     local host, port = parse_host(baseaddress, 80)
 
-    if not path or path== "" then
-        path = "/"
+    if not options.path or options.path== "" then
+        options.path = "/"
     end
 
-    if proxyaddress then
-        path = "http://"..host..':'..port..path
+    if options.proxy then
+        options.path = "http://"..host..':'..port..options.path
     end
 
     local cache = {}
     tbinsert( cache, method )
     tbinsert( cache, " " )
-    tbinsert( cache, path )
+    tbinsert( cache, options.path )
     tbinsert( cache, " HTTP/1.1\r\n" )
     tbinsert( cache, "Host: " )
     tbinsert( cache, baseaddress )
     tbinsert( cache, "\r\n")
 
-    if header then
-        for k,v in pairs(header) do
+    if options.header then
+        for k,v in pairs(options.header) do
             tbinsert( cache, k)
             tbinsert( cache, ": ")
             tbinsert( cache, tostring(v))
@@ -219,10 +228,10 @@ local function request( method, baseaddress, path, content, header, keepalive)
     end
 
     if content and #content > 0 then
-        header = header or {}
-        local v = header["Content-Length"]
+        options.header = options.header or {}
+        local v = options.header["Content-Length"]
         if not v then
-            v = header["Transfer-Encoding"]
+            v = options.header["Transfer-Encoding"]
             if not v or v~="chunked" then
                 tbinsert( cache, "Content-Length: ")
                 tbinsert( cache, tostring(#content))
@@ -231,25 +240,21 @@ local function request( method, baseaddress, path, content, header, keepalive)
         end
     end
 
-    if keepalive then
+    if options.keepalive then
         tbinsert( cache, "Connection: keep-alive")
         tbinsert( cache, "\r\n")
-        tbinsert( cache, "Keep-Alive: "..tostring(keepalive))
+        tbinsert( cache, "Keep-Alive: "..tostring(options.keepalive))
         tbinsert( cache, "\r\n")
     end
     tbinsert( cache, "\r\n")
     tbinsert( cache, content)
 
 
-    if proxyaddress then
-        baseaddress = proxyaddress
+    if options.proxy then
+        baseaddress = options.proxy
     end
 
-    local ok, response = do_request(baseaddress, keepalive, cache)
-    if not ok then
-        --reconnect
-        ok, response = do_request(baseaddress, keepalive, cache)
-    end
+    local ok, response = do_request(baseaddress, options, cache)
 
     if ok then
         return response
@@ -258,37 +263,45 @@ local function request( method, baseaddress, path, content, header, keepalive)
     end
 end
 
-function M.settimeout(v)
-    assert(type(v)=="number", "httpclient settimeout need integer param")
-    timeout = v
-end
-
-function M.setproxy(host)
-    proxyaddress = host
-end
-
 M.create_query_string = create_query_string
 
-function M.get(host, path, content, header, keepalive)
-    return request("GET", host, path, content, header, keepalive)
+---@class HttpOptions
+---@field public path string
+---@field public header table<string,string>
+---@field public keepalive integer @ seconds
+---@field public connect_timeout integer @ ms
+---@field public read_timeout integer @ ms
+---@field public proxy string @ host:port
+
+---@param host string @host:port
+---@param options HttpOptions
+function M.get(host, options)
+    return request("GET", host, options)
 end
 
-function M.put(host, path, content, header, keepalive)
-    return request("PUT", host, path, content, header, keepalive)
+---@param host string @host:port
+---@param options HttpOptions
+function M.put(host, content, options)
+    return request("PUT", host, options, content)
 end
 
-function M.post(host, path, content, header, keepalive)
-    return request("POST", host, path, content, header, keepalive)
+---@param host string @host:port
+---@param content string
+---@param options HttpOptions
+function M.post(host, content, options)
+    return request("POST", host, options, content)
 end
 
-function M.postform(host, path, form, header, keepalive)
-    header = header or {}
-    header["content-type"] = "application/x-www-form-urlencoded"
-
+---@param host string @host:port
+---@param form table @
+---@param options HttpOptions
+function M.postform(host, form, options)
+    options.header = options.header or {}
+    options.header["content-type"] = "application/x-www-form-urlencoded"
     for k,v in pairs(form) do
         form[k] = tostring(v)
     end
-    return request("POST", host, path, create_query_string(form), header, keepalive)
+    return request("POST", host, options, create_query_string(form))
 end
 
 return M
