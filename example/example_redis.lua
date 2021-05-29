@@ -108,7 +108,6 @@ local function run_example()
             local ret,errmsg = db:set("dog"..tostring(index), "an animaldadadaddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
             if not ret then
                 print("set", errmsg)
-                moon.remove_timer(timerid)
                 break
             end
             assert ('OK'== ret,ret)

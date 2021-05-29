@@ -1,6 +1,6 @@
 local moon = require("moon")
 local task = require("moon.task")
-local httpclient = require("moon.http.client")
+local httpc = require("moon.http.client")
 
 local function fn1()
 	return 1,"a","b"
@@ -30,10 +30,10 @@ end)
 moon.async(function()
 	local res =  task.wait_all({
 		function ()
-			return httpclient.get("www.baidu.com")
+			return httpc.get("www.baidu.com")
 		end,
 		function ()
-			return httpclient.get("cn.bing.com")
+			return httpc.get("cn.bing.com")
 		end,
 		function ()
 			moon.sleep(10000)
