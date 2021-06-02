@@ -4,7 +4,6 @@
 #include "worker.h"
 #include "common/hash.hpp"
 #include "common/lua_utility.hpp"
-#include "rapidjson/document.h"
 
 #ifdef MOON_ENABLE_MIMALLOC
 #include "mimalloc.h"
@@ -16,11 +15,7 @@ using namespace moon;
 
 constexpr size_t mb_memory = 1024 * 1024;
 
-extern "C"
-{
-    int lua_json_decode(lua_State* L, const char*, size_t);
-    void open_custom_libraries(lua_State* L);
-}
+extern "C" void open_custom_libs(lua_State* L);
 
 void *lua_service::lalloc(void *ud, void *ptr, size_t osize, size_t nsize)
 {
@@ -88,10 +83,11 @@ bool lua_service::init(const moon::service_conf& conf)
         lua_pushlightuserdata(L, this);
         lua_setfield(L, LUA_REGISTRYINDEX, LMOON_GLOBAL);
 
+        open_custom_libs(L);
+
         int r = luaL_dostring(L, server_->get_env("PATH").data());
         MOON_CHECK(r == LUA_OK, moon::format("PATH %s", lua_tostring(L, -1)));
-        
-        open_custom_libraries(L);
+
         lua_pushcfunction(L, traceback);
         assert(lua_gettop(L) == 1);
 

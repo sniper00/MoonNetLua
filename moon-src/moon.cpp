@@ -94,43 +94,6 @@ static void register_signal(int argc, char* argv[])
 #endif
 }
 
-#define REGISTER_CUSTOM_LIBRARY(name, lua_c_fn)\
-            int lua_c_fn(lua_State* L);\
-\
-            moon::requiref(L, name, lua_c_fn);\
-
-
-extern "C"
-{
-    void open_custom_libraries(lua_State* L)
-    {
-        //core
-#ifdef LUA_CACHELIB
-        REGISTER_CUSTOM_LIBRARY("codecache", luaopen_cache);
-#endif
-        REGISTER_CUSTOM_LIBRARY("mooncore", luaopen_moon);
-        REGISTER_CUSTOM_LIBRARY("asio", luaopen_asio);
-        REGISTER_CUSTOM_LIBRARY("fs", luaopen_fs);
-        REGISTER_CUSTOM_LIBRARY("http", luaopen_http);
-        REGISTER_CUSTOM_LIBRARY("seri", luaopen_serialize);
-        REGISTER_CUSTOM_LIBRARY("json", luaopen_json);
-        REGISTER_CUSTOM_LIBRARY("buffer", luaopen_buffer);
-        REGISTER_CUSTOM_LIBRARY("sharetable.core", luaopen_sharetable_core);
-        REGISTER_CUSTOM_LIBRARY("socket.core", luaopen_socket_core);
-
-        //custom
-        REGISTER_CUSTOM_LIBRARY("pb", luaopen_pb);
-        REGISTER_CUSTOM_LIBRARY("pb.unsafe", luaopen_pb_unsafe);
-        REGISTER_CUSTOM_LIBRARY("crypt", luaopen_crypt);
-        REGISTER_CUSTOM_LIBRARY("aoi", luaopen_aoi);
-        REGISTER_CUSTOM_LIBRARY("clonefunc", luaopen_clonefunc);
-        REGISTER_CUSTOM_LIBRARY("random", luaopen_random);
-        REGISTER_CUSTOM_LIBRARY("zset", luaopen_zset);
-
-    }
-}
-
-
 #ifdef MOON_ENABLE_MIMALLOC
 #include "mimalloc.h"
 void print_mem_stats()
@@ -284,3 +247,37 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+#define REGISTER_CUSTOM_LIBRARY(name, lua_c_fn)\
+            int lua_c_fn(lua_State*);\
+            luaL_requiref(L, name, lua_c_fn, 0);\
+            lua_pop(L, 1);  /* remove lib */\
+
+extern "C"
+{
+    void open_custom_libs(lua_State* L)
+    {
+        //core
+#ifdef LUA_CACHELIB
+        REGISTER_CUSTOM_LIBRARY("codecache", luaopen_cache);
+#endif
+
+        REGISTER_CUSTOM_LIBRARY("mooncore", luaopen_moon);
+        REGISTER_CUSTOM_LIBRARY("asio", luaopen_asio);
+        REGISTER_CUSTOM_LIBRARY("fs", luaopen_fs);
+        REGISTER_CUSTOM_LIBRARY("http", luaopen_http);
+        REGISTER_CUSTOM_LIBRARY("seri", luaopen_serialize);
+        REGISTER_CUSTOM_LIBRARY("json", luaopen_json);
+        REGISTER_CUSTOM_LIBRARY("buffer", luaopen_buffer);
+        REGISTER_CUSTOM_LIBRARY("sharetable.core", luaopen_sharetable_core);
+        REGISTER_CUSTOM_LIBRARY("socket.core", luaopen_socket_core);
+
+        //custom
+        REGISTER_CUSTOM_LIBRARY("pb", luaopen_pb);
+        REGISTER_CUSTOM_LIBRARY("pb.unsafe", luaopen_pb_unsafe);
+        REGISTER_CUSTOM_LIBRARY("crypt", luaopen_crypt);
+        REGISTER_CUSTOM_LIBRARY("aoi", luaopen_aoi);
+        REGISTER_CUSTOM_LIBRARY("clonefunc", luaopen_clonefunc);
+        REGISTER_CUSTOM_LIBRARY("random", luaopen_random);
+        REGISTER_CUSTOM_LIBRARY("zset", luaopen_zset);
+    }
+}

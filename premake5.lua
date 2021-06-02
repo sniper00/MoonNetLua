@@ -142,20 +142,12 @@ end
     Lua C/C++扩展 在下面添加
 ]]
 
--------------------------protobuf--------------------
-add_lua_module("./third/pb", "pb")
-
-add_lua_module("./third/lcrypt", "crypt",nil,function ()
-    disablewarnings { "4267","4456","4459","4244" }
-end)
+add_lua_module("./third/sharetable", "sharetable")
+add_lua_module("./third/clonefunc", "clonefunc")--for hotfix
+add_lua_module("./third/lcrypt", "crypt")
+add_lua_module("./third/pb", "pb")--protobuf
 
 -------------------------laoi--------------------
 add_lua_module("./lualib-src/laoi", "aoi",function()
     language "C++"
 end)
-
--------------------------sharetable--------------------
-add_lua_module("./third/sharetable", "sharetable")
-
--------------------------clonefunc: for hotfix--------------------
-add_lua_module("./third/lclonefunc", "clonefunc")
