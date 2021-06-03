@@ -183,8 +183,6 @@ int main(int argc, char* argv[])
                     thread_count = (uint32_t)luaL_checkinteger(L, -1);
                 else if (key == "logfile")
                     logfile = luaL_check_stringview(L, -1);
-                else if (key == "memlimit")
-                    loglevel = luaL_check_stringview(L, -1);
                 else if (key == "enable_console")
                     enable_console = lua_toboolean(L, -1);
                 else if (key == "loglevel")
