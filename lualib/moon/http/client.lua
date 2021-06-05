@@ -276,12 +276,14 @@ M.create_query_string = create_query_string
 ---@param host string @host:port
 ---@param options HttpOptions
 function M.get(host, options)
+    options = options or {}
     return request("GET", host, options)
 end
 
 ---@param host string @host:port
 ---@param options HttpOptions
 function M.put(host, content, options)
+    options = options or {}
     return request("PUT", host, options, content)
 end
 
@@ -289,6 +291,7 @@ end
 ---@param content string
 ---@param options HttpOptions
 function M.post(host, content, options)
+    options = options or {}
     return request("POST", host, options, content)
 end
 
@@ -296,6 +299,7 @@ end
 ---@param form table @
 ---@param options HttpOptions
 function M.postform(host, form, options)
+    options = options or {}
     options.header = options.header or {}
     options.header["content-type"] = "application/x-www-form-urlencoded"
     for k,v in pairs(form) do
