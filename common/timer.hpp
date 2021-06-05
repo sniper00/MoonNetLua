@@ -59,6 +59,11 @@ namespace moon
             stop_ = false;
         }
 
+        uint32_t make_timerid()
+        {
+            return ++timerid_;
+        }
+
         template<typename... Args>
         uint32_t add(time_t expiretime, Args&&... args)
         {

@@ -190,6 +190,12 @@ namespace moon
 
     uint32_t server::timeout(int64_t interval, uint32_t serviceid)
     {
+        if (0 == interval)
+        {
+            auto timerid = timer_.make_timerid();
+            on_timer(serviceid, timerid);
+            return timerid;
+        }
         return timer_.add(now_+ interval, serviceid, this);
     }
 
