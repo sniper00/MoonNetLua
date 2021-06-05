@@ -34,7 +34,7 @@ command.COUNTER = function(t)
     end
     tcount = tcount + 1
 
-    if count == 100000 then
+    if count == 10000 then
         print("per", (t-bt))
         count = 0
         bt = 0
@@ -44,7 +44,7 @@ end
 moon.async(function()
     while true do
         moon.sleep(1000)
-        print(count)
+        print(tcount)
     end
 end)
 

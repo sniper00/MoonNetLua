@@ -4,6 +4,8 @@ local reload = require "hardreload"
 local require = reload.require
 -- reload.postfix = "_update"	-- for test
 
+---hot fix example
+
 reload.addsearcher(function(name)
 	local file, err = io.open(name..".lua", "rb")
 	if file then
@@ -23,10 +25,9 @@ moon.async(function ()
     end
 end)
 
-if not conf.new then
-    print("10 seconds later hot fix")
-    moon.timeout(10000, function (  )
-        print("Hot Fix Result",reload.reload("reload_before", "reload_after"))
-    end)
-end
+print("10 seconds later hot fix")
+moon.timeout(10000, function (  )
+    print("Hot Fix Result",reload.reload("reload_before", "reload_after"))
+end)
+
 
