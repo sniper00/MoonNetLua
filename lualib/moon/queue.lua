@@ -1,62 +1,41 @@
 local moon = require("moon")
-
-local status = coroutine.status
-local running = coroutine.running
-
-local task_queue = { h = 1, t = 0 }
-
+local coroutine = coroutine
+local table = table
 local traceback = debug.traceback
 
-local M = {}
+local function queue()
+	local current_thread
+	local ref = 0
+	local thread_queue = {}
 
-M.__index = M
+	local scope = setmetatable({}, { __close = function()
+		ref = ref - 1
+		if ref == 0 then
+			current_thread = table.remove(thread_queue,1)
+			if current_thread then
+				moon.timeout(0, function()
+					local ok, err = coroutine.resume(current_thread)
+					if not ok then
+						err = traceback(current_thread, tostring(err))
+						coroutine.close(current_thread)
+						moon.error(err)
+					end
+				end)
+			end
+		end
+	end})
 
-function M.new()
-    local obj = {}
-    obj.q = {}
-    return setmetatable(obj,M)
+	return function()
+		local thread = coroutine.running()
+		if current_thread and current_thread ~= thread then
+			table.insert(thread_queue, thread)
+			coroutine.yield()
+			assert(ref == 0)	-- current_thread == thread
+		end
+		current_thread = thread
+		ref = ref + 1
+		return scope
+	end
 end
 
-function M:run(fn, err_fn)
-    local t = task_queue.t + 1
-	task_queue.t = t
-	task_queue[t] = fn
-    if not self.thread or status(self.thread)== "dead" then
-        -- if self.thread and status(self.thread)== "dead" then
-        --     print("..............................", self.thread )
-        -- end
-        moon.async(function()
-            self.thread = running()
-            while true do
-                if task_queue.h > task_queue.t then
-                    -- queue is empty
-                    task_queue.h = 1
-                    task_queue.t = 0
-                    break
-                end
-
-                -- pop queue
-                local h = task_queue.h
-                local fn_ = task_queue[h]
-                task_queue[h] = nil
-                task_queue.h = h + 1
-
-                local ok, errmsg = xpcall(fn_, traceback)
-                if ok == false  then
-                    if err_fn then
-                        err_fn(errmsg)
-                    else
-                        moon.error(errmsg)
-                    end
-                end
-            end
-            self.thread = nil
-        end)
-    end
-end
-
-function M:size()
-    return #self.q
-end
-
-return M
+return queue

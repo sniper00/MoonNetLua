@@ -13,10 +13,7 @@ local seri = require("seri")
 local pairs = pairs
 local type = type
 local error = error
-local assert = assert
-local setmetatable = setmetatable
 local tremove = table.remove
-local tointeger = math.tointeger
 local traceback = debug.traceback
 
 local co_create = coroutine.create
@@ -34,41 +31,32 @@ local _queryservice = core.queryservice
 local _decode = core.decode
 local _scan_services = core.scan_services
 
-local unpack = seri.unpack
-local pack = seri.pack
-
-local PTYPE_SYSTEM = 1
-local PTYPE_TEXT = 2
-local PTYPE_LUA = 3
-local PTYPE_SOCKET = 4
-local PTYPE_ERROR = 5
-local PTYPE_SOCKET_WS = 6
-local PTYPE_DEBUG = 7
-local PTYPE_SHUTDOWN = 8
-local PTYPE_TIMER = 9
-
-local LOG_ERROR = 1
-local LOG_WARN = 2
-local LOG_INFO = 3
-local LOG_DEBUG = 4
-
 ---@class moon : core
-local moon =  core
+local moon = core
 
-moon.PTYPE_TEXT = PTYPE_TEXT
-moon.PTYPE_LUA = PTYPE_LUA
-moon.PTYPE_SOCKET = PTYPE_SOCKET
-moon.PTYPE_SOCKET_WS = PTYPE_SOCKET_WS
+moon.PTYPE_SYSTEM = 1
+moon.PTYPE_TEXT = 2
+moon.PTYPE_LUA = 3
+moon.PTYPE_SOCKET = 4
+moon.PTYPE_ERROR = 5
+moon.PTYPE_SOCKET_WS = 6
+moon.PTYPE_DEBUG = 7
+moon.PTYPE_SHUTDOWN = 8
+moon.PTYPE_TIMER = 9
 
 --moon.codecache = require("codecache")
 
-moon.error = function(...) core.log(LOG_ERROR,...) end
-moon.warn = function(...) core.log(LOG_WARN,...) end
-moon.info = function(...) core.log(LOG_INFO,...) end
-moon.debug = function(...) core.log(LOG_DEBUG,...) end
+-- LOG_ERROR = 1
+-- LOG_WARN = 2
+-- LOG_INFO = 3
+-- LOG_DEBUG = 4
+moon.error = function(...) core.log(1,...) end
+moon.warn = function(...) core.log(2,...) end
+moon.info = function(...) core.log(3,...) end
+moon.debug = function(...) core.log(4,...) end
 
-moon.pack = pack
-moon.unpack = unpack
+moon.pack = seri.pack
+moon.unpack = seri.unpack
 
 --export global variable
 local _g = _G
@@ -119,7 +107,7 @@ local timer_routine = {}
 local function coresume(co, ...)
     local ok, err = co_resume(co, ...)
     if not ok then
-        err = traceback(co, err)
+        err = traceback(co, tostring(err))
         co_close(co)
         error(err)
     end
@@ -133,7 +121,9 @@ local function make_response(receiver)
         uuid = 1
     end
 
-    assert(nil == session_id_coroutine[uuid])
+    if nil ~= session_id_coroutine[uuid] then
+        error("sessionid is used!")
+    end
 
     if receiver then
         session_watcher[uuid] = receiver
@@ -159,7 +149,7 @@ local function _default_dispatch(msg, PTYPE)
     end
 
     local sessionid = _decode(msg, "E")
-    if sessionid > 0 and PTYPE ~= PTYPE_ERROR then
+    if sessionid > 0 and PTYPE ~= moon.PTYPE_ERROR then
         session_watcher[sessionid] = nil
         local co = session_id_coroutine[sessionid]
         if co then
@@ -237,7 +227,7 @@ end
 function moon.new_service(stype, config)
     local sessionid = make_response()
     _newservice(stype, sessionid, config)
-    return tointeger(co_yield())
+    return math.tointeger(co_yield())
 end
 
 ---异步移除指定的服务
@@ -322,10 +312,7 @@ function moon.async(func)
     if not co then
         co = co_create(routine)
     end
-    local _, res = coresume(co, func) --func 作为 routine 的参数
-    if res then
-        return res
-    end
+    co_resume(co, func) --func 作为 routine 的参数
     return co
 end
 
@@ -387,15 +374,6 @@ function moon.response(PTYPE, receiver, sessionid, ...)
     _send(receiver, p.pack(...), '', sessionid, p.PTYPE)
 end
 
-function moon.wait()
-    return co_yield()
-end
-
-function moon.wakeup(session, ...)
-    local co = session_id_coroutine[session]
-    coresume(co, ...)
-end
-
 ------------------------------------
 function moon.register_protocol(t)
     local PTYPE = t.PTYPE
@@ -426,9 +404,9 @@ end
 
 reg_protocol {
     name = "lua",
-    PTYPE = PTYPE_LUA,
-    pack = seri.pack,
-    unpack = unpack,
+    PTYPE = moon.PTYPE_LUA,
+    pack = moon.pack,
+    unpack = moon.unpack,
     dispatch = function()
         error("PTYPE_LUA dispatch not implemented")
     end
@@ -436,7 +414,7 @@ reg_protocol {
 
 reg_protocol {
     name = "text",
-    PTYPE = PTYPE_TEXT,
+    PTYPE = moon.PTYPE_TEXT,
     pack = function(...)
         return ...
     end,
@@ -448,7 +426,7 @@ reg_protocol {
 
 reg_protocol {
     name = "error",
-    PTYPE = PTYPE_ERROR,
+    PTYPE = moon.PTYPE_ERROR,
     pack = function(...)
         return ...
     end,
@@ -489,7 +467,7 @@ end
 
 reg_protocol {
     name = "system",
-    PTYPE = PTYPE_SYSTEM,
+    PTYPE = moon.PTYPE_SYSTEM,
     pack = function(...)
         return ...
     end,
@@ -505,7 +483,7 @@ reg_protocol {
 
 reg_protocol{
     name = "socket",
-    PTYPE = PTYPE_SOCKET,
+    PTYPE = moon.PTYPE_SOCKET,
     pack = function(...) return ... end,
     dispatch = function()
         error("PTYPE_SOCKET dispatch not implemented")
@@ -514,7 +492,7 @@ reg_protocol{
 
 reg_protocol{
     name = "websocket",
-    PTYPE = PTYPE_SOCKET_WS,
+    PTYPE = moon.PTYPE_SOCKET_WS,
     pack = function(...) return ... end,
     dispatch = function(_)
         error("PTYPE_SOCKET_WS dispatch not implemented")
@@ -525,7 +503,7 @@ local cb_shutdown
 
 reg_protocol {
     name = "shutdown",
-    PTYPE = PTYPE_SHUTDOWN,
+    PTYPE = moon.PTYPE_SHUTDOWN,
     dispatch = function()
         if cb_shutdown then
             cb_shutdown()
@@ -551,7 +529,7 @@ end
 
 reg_protocol {
     name = "timer",
-    PTYPE = PTYPE_TIMER,
+    PTYPE = moon.PTYPE_TIMER,
     dispatch = function(msg)
         local timerid = _decode(msg, "S")
         local v = timer_routine[timerid]
@@ -613,9 +591,9 @@ end
 
 reg_protocol {
     name = "debug",
-    PTYPE = PTYPE_DEBUG,
-    pack = pack,
-    unpack = unpack,
+    PTYPE = moon.PTYPE_DEBUG,
+    pack = moon.pack,
+    unpack = moon.unpack,
     dispatch = function(msg, unpack_fn)
         local sender, sessionid, sz, len = _decode(msg,"SEC")
         local params = {unpack_fn(sz, len)}

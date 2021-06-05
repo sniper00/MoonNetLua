@@ -154,7 +154,7 @@ local function cluster_service()
 
     local command = {}
 
-    local send_queue = require("moon.queue").new()
+    local lock = require("moon.queue")()
 
     function command.Start()
         if conf.host and conf.port then
@@ -174,56 +174,56 @@ local function cluster_service()
         local header = unpack_one(moon.decode(msg, "B"))
 
         local c = clusters[header.to_node]
-        local data
-        if c then
-            if c.fd and socket.write_message(c.fd, msg) then
-                if header.session < 0 then
-                    --记录mode-call消息，网络断开时，返回错误信息
-                    add_send_watch(c.fd, header.from_addr, -header.session)
-                end
-                return
+        if c and c.fd and socket.write_message(c.fd, msg) then
+            if header.session < 0 then
+                --记录mode-call消息，网络断开时，返回错误信息
+                add_send_watch(c.fd, header.from_addr, -header.session)
             end
-            data = moon.decode(msg, "Z")
+            return
         else
-            data = moon.decode(msg, "Z")
+            if c then
+                c.fd = false
+            end
+        end
 
+        local data = moon.decode(msg, "Z")
+
+        local scope<close> = lock()
+
+        c = clusters[header.to_node]
+        if not c then
             local response, err = httpc.get(conf.etc_host,{
                 path = conf.etc_path.."?node="..tostring(header.to_node)
             })
-
             if not response or response.status_code ~= "200 OK" then
                 moon.error(response and response.content or err)
-                moon.response("lua", header.from_addr, header.session, false, "target not run cluster:"..tostring(header.to_node))
-                return
+                return false, "target not run cluster:"..tostring(header.to_node)
             end
             c = json.decode(response.content)
             c.fd = false
             clusters[header.to_node] = c
+            moon.error("request once")
         end
 
-        send_queue:run(function()
-            if not c.fd then
-                c.fd = connect(header.to_node)
-            end
+        if not c.fd then
+            c.fd = connect(header.to_node)
+        end
 
-            if c.fd and socket.write(c.fd, data) then
-                if header.session < 0 then
-                    --记录mode-call消息，网络断开时，返回错误信息
-                    add_send_watch(c.fd, header.from_addr, -header.session)
-                end
-            else
-                c.fd = false
+        if c.fd and socket.write(c.fd, data) then
+            if header.session < 0 then
+                --记录mode-call消息，网络断开时，返回错误信息
+                add_send_watch(c.fd, header.from_addr, -header.session)
             end
+            return
+        end
 
-            if not c.fd then
-                if header.session == 0 then
-                    moon.error("not connected cluster")
-                else
-                    --CASE1:connect failed, mode-call, 返回错误信息
-                    moon.response("lua", header.from_addr, header.session, false, "connect failed:"..tostring(header.to_node))
-                end
-            end
-        end)
+        if header.session == 0 then
+            moon.error("not connected cluster")
+            return
+        else
+            --CASE1:connect failed, mode-call, 返回错误信息
+            return false, "connect failed:"..tostring(header.to_node)
+        end
     end
 
     moon.async(function()
