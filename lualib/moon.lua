@@ -312,7 +312,7 @@ function moon.async(func)
     if not co then
         co = co_create(routine)
     end
-    co_resume(co, func) --func 作为 routine 的参数
+    coresume(co, func) --func 作为 routine 的参数
     return co
 end
 
