@@ -196,13 +196,14 @@ local function cluster_service()
                 path = conf.etc_path.."?node="..tostring(header.to_node)
             })
             if not response or response.status_code ~= "200 OK" then
-                moon.error(response and response.content or err)
-                return false, "target not run cluster:"..tostring(header.to_node)
+                local errstr = response and response.content or err
+                moon.error(errstr)
+                moon.response("lua", header.from_addr, header.session, false, errstr)
+                return
             end
             c = json.decode(response.content)
             c.fd = false
             clusters[header.to_node] = c
-            moon.error("request once")
         end
 
         if not c.fd then
@@ -222,7 +223,8 @@ local function cluster_service()
             return
         else
             --CASE1:connect failed, mode-call, 返回错误信息
-            return false, "connect failed:"..tostring(header.to_node)
+            moon.response("lua", header.from_addr, header.session, false, "connect failed:"..tostring(header.to_node))
+            return
         end
     end
 
