@@ -13,34 +13,6 @@ namespace moon
 {
     class directory
     {
-        template<typename THandler>
-        static void traverse_folder_imp(const fs::path& path, int depth, THandler&&handler)
-        {
-            if (depth < 0)
-            {
-                return;
-            }
-
-            std::error_code ec;
-            if (!fs::exists(path, ec))
-            {
-                return;
-            }
-
-            depth--;
-
-            for (auto&p : fs::directory_iterator(path))
-            {
-                if (!handler(p.path(), fs::is_directory(p, ec)))
-                {
-                    break;
-                }
-                if (fs::is_directory(p, ec))
-                {
-                    traverse_folder_imp(p.path(), depth, std::forward<THandler>(handler));
-                }
-            }
-        }
     public:
         inline static fs::path working_directory;
 
@@ -56,14 +28,18 @@ namespace moon
 #if TARGET_PLATFORM == PLATFORM_WINDOWS
             char temp[MAX_PATH];
             auto len = GetModuleFileName(NULL, temp, MAX_PATH);
+            if(0 == len)
+                throw std::runtime_error(moon::format("module_path error: %u", GetLastError()));
 #elif TARGET_PLATFORM == PLATFORM_MAC
             char temp[1024];
             uint32_t len = 1024;
             if(_NSGetExecutablePath(temp, &len) != 0)
-                throw std::runtime_error("_NSGetExecutablePath Failed");
+                throw std::runtime_error("module_path error");
 #else
             char temp[1024];
             auto len = readlink("/proc/self/exe", temp, 1024);
+            if(-1 == len)
+                throw std::runtime_error(moon::format("module_path error %d", errno));
 #endif
             std::string res(temp, len);
             return fs::path(res).parent_path();
