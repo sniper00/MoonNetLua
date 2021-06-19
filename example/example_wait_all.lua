@@ -40,6 +40,6 @@ moon.async(function()
 			assert(false)
 		end})
 	print_r(res)
-	moon.exit(-1)
+	moon.exit(100)
 end)
 

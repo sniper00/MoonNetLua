@@ -278,15 +278,15 @@ namespace moon
             }
         }
 
-        int64_t start_time = moon::time::microsecond();
+        double start_time = moon::time::clock();
         handle_message(s, std::move(msg));
-        int64_t cost_time = moon::time::microsecond() - start_time;
+        double cost_time = moon::time::clock() - start_time;
         s->add_cpu_cost(cost_time);
         cpu_cost_ += cost_time;
-        if (cost_time > 100000)
+        if (cost_time > 0.1)
         {
             CONSOLE_WARN(server_->logger(),
-                "worker %u handle one message cost %" PRId64 "us, from %08X to %08X", id(), cost_time, sender, receiver);
+                "worker %u handle one message cost %f, from %08X to %08X", id(), cost_time, sender, receiver);
         }
     }
 }

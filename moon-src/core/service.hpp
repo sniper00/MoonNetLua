@@ -77,10 +77,10 @@ namespace moon
             ok_ = v;
         }
 
-        int64_t cpu_cost()
+        double cpu_cost()
         {
             auto v = cpu_cost_;
-            cpu_cost_ = 0;
+            cpu_cost_ = 0.0;
             return v;
         }
     public:
@@ -99,7 +99,7 @@ namespace moon
             id_ = v;
         }
 
-        void add_cpu_cost(int64_t v)
+        void add_cpu_cost(double v)
         {
             cpu_cost_ += v;
         }
@@ -110,7 +110,7 @@ namespace moon
         log* log_ = nullptr;
         server* server_ = nullptr;
         worker* worker_ = nullptr;
-        int64_t cpu_cost_ = 0;//us
+        double cpu_cost_ = 0.0;//
         std::string   name_;
     };
 

@@ -386,7 +386,7 @@ namespace moon
         for (auto& w : workers_)
         {
             req.append(",\n");
-            auto v = moon::format(R"({"id":%u, "cpu":%lld, "mqsize":%u, "service":%u})",
+            auto v = moon::format(R"({"id":%u, "cpu":%f, "mqsize":%u, "service":%u})",
                 w->id(),
                 w->cpu_cost_,
                 w->mqsize_.load(),

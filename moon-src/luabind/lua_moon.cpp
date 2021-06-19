@@ -54,9 +54,9 @@ static moon::buffer_ptr_t moon_to_buffer(lua_State* L, int index)
     return nullptr;
 }
 
-static int lmoon_microseconds(lua_State* L)
+static int lmoon_clock(lua_State* L)
 {
-    lua_pushinteger(L, time::microsecond());
+    lua_pushnumber(L, time::clock());
     return 1;
 }
 
@@ -560,7 +560,7 @@ extern "C"
     int LUAMOD_API luaopen_moon(lua_State* L)
     {
         luaL_Reg l[] = {
-            { "microseconds", lmoon_microseconds},
+            { "clock", lmoon_clock},
             { "md5", lmoon_md5 },
             { "tostring", lmoon_tostring },
             { "localtime", lmoon_localtime },

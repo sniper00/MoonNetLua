@@ -9,23 +9,13 @@ namespace moon
     class time
     {
         using time_point = std::chrono::time_point<std::chrono::steady_clock>;
-        inline static time_point start_time_point_ = std::chrono::steady_clock::now();
+        inline static const time_point start_time_point_ = std::chrono::steady_clock::now();
         inline static std::time_t start_millsecond = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         inline static std::time_t offset_ = 0;
     public:
-        static std::time_t second()
+        static double clock()
         {
-            return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-        }
-
-        static std::time_t millisecond()
-        {
-            return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-        }
-
-        static std::time_t microsecond()
-        {
-            return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            return std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time_point_).count();
         }
 
         static bool offset(std::time_t v)
@@ -123,7 +113,7 @@ namespace moon
             static int tz = 0;
             if (tz == 0)
             {
-                auto t = time::second();
+                auto t = std::time(nullptr);
                 auto gm_tm = time::gmtime(t);
                 std::tm local_tm;
                 time::localtime(&t, &local_tm);
