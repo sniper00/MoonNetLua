@@ -13,14 +13,7 @@ local function queue()
 		if ref == 0 then
 			current_thread = table.remove(thread_queue,1)
 			if current_thread then
-				moon.timeout(0, function()
-					local ok, err = coroutine.resume(current_thread)
-					if not ok then
-						err = traceback(current_thread, tostring(err))
-						coroutine.close(current_thread)
-						moon.error(err)
-					end
-				end)
+				moon.wakeup(current_thread)
 			end
 		end
 	end})

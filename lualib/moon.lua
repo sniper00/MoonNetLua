@@ -316,6 +316,17 @@ function moon.async(func)
     return co
 end
 
+function moon.wakeup(co)
+    moon.timeout(0, function()
+        local ok, err = co_resume(co)
+        if not ok then
+            err = traceback(co, tostring(err))
+            co_close(co)
+            moon.error(err)
+        end
+    end)
+end
+
 ---返回运行中的协程个数,和协程池空闲的协程个数
 function moon.coroutine_num()
     return co_num, #co_pool
