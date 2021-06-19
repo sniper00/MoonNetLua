@@ -49,12 +49,12 @@ namespace moon
             return;
         }
 
-        void stop_all_timer()
+        void pause()
         {
             stop_ = true;
         }
 
-        void start_all_timer()
+        void resume()
         {
             stop_ = false;
         }
@@ -78,7 +78,7 @@ namespace moon
         }
     private:
         bool stop_ = false;
-        uint32_t timerid_ = 0;
+        std::atomic<uint32_t> timerid_ = 0;
         std::mutex lock_;
         std::multimap<int64_t, expire_policy_type> timers_;
     };
