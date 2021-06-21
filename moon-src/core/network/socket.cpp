@@ -154,8 +154,13 @@ uint32_t socket::connect(const std::string& host, uint16_t port, uint32_t owner,
                         timer->async_wait([this, c, owner, sessionid, host, port, timer](const asio::error_code& ec) {
                             if (!ec)
                             {
-                                c->close();
-                                response(0, owner, std::string_view{}, moon::format("connect %s:%d: timeout", host.data(), port), sessionid, PTYPE_ERROR);
+                                //maybe timer handler already in complete queue( 0 == timer->cancel()), 
+                                //so it will not trigger error code, check was connected:
+                                if (c->fd() == 0)
+                                {
+                                    c->close();
+                                    response(0, owner, std::string_view{}, moon::format("connect %s:%d: timeout", host.data(), port), sessionid, PTYPE_ERROR);
+                                }
                             }
                             });
                     }

@@ -25,6 +25,8 @@ namespace moon
         {
             if (!is_open() || sessionid_ != 0)
             {
+                //Undefined behavior
+                CONSOLE_ERROR(logger(), "invalid read operation. %u", fd_);
                 asio::post(socket_.get_executor(), [this, self = shared_from_this()]() {
                     error(make_error_code(error::invalid_read_operation));
                 });
