@@ -25,6 +25,8 @@ namespace moon
         {
             if (!is_open() || sessionid_ != 0)
             {
+                //Undefined behavior
+                CONSOLE_ERROR(logger(), "invalid read operation. %u", fd_);
                 asio::post(socket_.get_executor(), [this, self = shared_from_this()]() {
                     error(make_error_code(error::invalid_read_operation));
                 });
@@ -95,14 +97,18 @@ namespace moon
 
             if (e)
             {
-                if (e != asio::error::eof)
+                if (e == moon::error::read_timeout)
                 {
-                    response_->set_header("SOCKET_ERROR");
-                    response_->write_data(moon::format("%s.(%d)", e.message().data(), e.value()));
+                    response_->set_header("TIMEOUT");
+                }
+                else if (e == asio::error::eof)
+                {
+                    response_->set_header("EOF");
                 }
                 else
                 {
-                    response_->set_header("EOF");
+                    response_->set_header("SOCKET_ERROR");
+                    response_->write_data(moon::format("%s.(%d)", e.message().data(), e.value()));
                 }
             }
 

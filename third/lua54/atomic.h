@@ -1,7 +1,7 @@
 #ifndef _ATOMIC_H___
 #define _ATOMIC_H___
 
-#if defined(_MSC_VER) && !defined(__cplusplus)
+#if defined(_MSC_VER)
 #include <stdbool.h>
 #include <stdint.h>
 #include <intrin.h>
@@ -10,7 +10,7 @@
 #define atomic_load(object)             *(object)
 #define atomic_store(object, desired)   (void)(*(object) = (desired))
 
-typedef signed char         atomic_schar;
+typedef char                atomic_schar;
 typedef unsigned char       atomic_uchar;
 typedef intptr_t            atomic_intptr_t;
 typedef uintptr_t           atomic_uintptr_t;

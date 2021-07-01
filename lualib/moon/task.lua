@@ -1,7 +1,6 @@
 local moon = require("moon")
 local corunning = coroutine.running
 local costatus = coroutine.status
-local coresume = coroutine.resume
 local coyield = coroutine.yield
 
 local traceback = debug.traceback
@@ -17,26 +16,28 @@ local _M = {}
 function _M.wait_all(fnlist)
     local n = #fnlist
     local res = {}
+    if n == 0 then
+        return res
+    end
     local co = corunning()
-    for i,fn in ipairs(fnlist) do
-        moon.async(function ()
-            res[i] = {xpcall(fn, traceback)}
-            if res[i][1] then
-                table.remove(res[i], 1)
-            end
-            n=n-1
-            if costatus(co) == "suspended" then
-                coresume(co)
-            end
-        end)
-    end
-
-    while true do
-        if n==0 then
-            break
+    moon.timeout(0, function()
+        for i,fn in ipairs(fnlist) do
+            moon.async(function ()
+                local one = {xpcall(fn, traceback)}
+                if one[1] then
+                    table.remove(one, 1)
+                end
+                res[i] = one
+                n=n-1
+                if n==0 then
+                    if costatus(co) == "suspended" then
+                        moon.wakeup(co)
+                    end
+                end
+            end)
         end
-        coyield()
-    end
+    end)
+    coyield()
     return res
 end
 

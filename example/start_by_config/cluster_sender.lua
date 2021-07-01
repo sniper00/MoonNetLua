@@ -14,24 +14,19 @@ end)
 local args = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}
 moon.async(function()
     print(moon.co_call("lua", moon.queryservice("cluster"), "Start"))
+    cluster.call(9, 'cluster_receiver', "ACCUM", table.unpack(args))
+    for i=1,100000 do
+        cluster.send(9, 'cluster_receiver',"COUNTER", moon.now())
+    end
+
     while true do
-        local ret ,err = cluster.call(8, 'cluster_receiver', "ACCUM", table.unpack(args))
+        local ret ,err = cluster.call(9, 'cluster_receiver', "ACCUM", table.unpack(args))
         if not ret then
             print(err)
-            moon.remove_timer(timerid)
             return
         end
         counter=counter+1
     end
-end)
-
-
-moon.async(function()
-    moon.sleep(5000)
-    for i=1,1000000 do
-        cluster.send(8, 'cluster_receiver',"COUNTER", moon.now())
-    end
-    print("end")
 end)
 
 

@@ -26,6 +26,8 @@ local arg = load(moon.get_env("ARG"))()
 
 local sid = math.tointeger(arg[1])
 
+moon.set_env("NODE", arg[1])
+
 local services
 
 local switch = {}

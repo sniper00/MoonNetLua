@@ -47,7 +47,7 @@ equal(type(socket.settimeout) , "function")
 equal(type(socket.setnodelay) , "function")
 equal(type(socket.set_enable_chunked) , "function")
 
-equal(type(moon.microseconds) , "function")
+equal(type(moon.clock) , "function")
 
 equal(type(moon.timeout) , "function")
 

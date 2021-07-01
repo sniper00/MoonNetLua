@@ -54,9 +54,9 @@ static moon::buffer_ptr_t moon_to_buffer(lua_State* L, int index)
     return nullptr;
 }
 
-static int lmoon_microseconds(lua_State* L)
+static int lmoon_clock(lua_State* L)
 {
-    lua_pushinteger(L, time::microsecond());
+    lua_pushnumber(L, time::clock());
     return 1;
 }
 
@@ -560,7 +560,7 @@ extern "C"
     int LUAMOD_API luaopen_moon(lua_State* L)
     {
         luaL_Reg l[] = {
-            { "microseconds", lmoon_microseconds},
+            { "clock", lmoon_clock},
             { "md5", lmoon_md5 },
             { "tostring", lmoon_tostring },
             { "localtime", lmoon_localtime },
@@ -638,7 +638,7 @@ static int lasio_accept(lua_State* L)
 {
     lua_service* S = (lua_service*)get_ptr(L, LMOON_GLOBAL);
     auto& sock = S->get_worker()->socket();
-    uint32_t fd = (int32_t)luaL_checkinteger(L, 1);
+    uint32_t fd = (uint32_t)luaL_checkinteger(L, 1);
     int32_t sessionid = (int32_t)luaL_checkinteger(L, 2);
     uint32_t owner = (uint32_t)luaL_checkinteger(L, 3);
     sock.accept(fd, sessionid, owner);
@@ -719,8 +719,8 @@ static int lasio_settimeout(lua_State* L)
     lua_service* S = (lua_service*)get_ptr(L, LMOON_GLOBAL);
     auto& sock = S->get_worker()->socket();
     uint32_t fd = (uint32_t)luaL_checkinteger(L, 1);
-    int32_t v = (int32_t)luaL_checkinteger(L, 2);//seconds
-    bool ok = sock.settimeout(fd, v);
+    uint32_t seconds = (uint32_t)luaL_checkinteger(L, 2);
+    bool ok = sock.settimeout(fd, seconds);
     lua_pushboolean(L, ok ? 1 : 0);
     return 1;
 }

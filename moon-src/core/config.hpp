@@ -73,6 +73,8 @@ namespace moon
         std::string source;
         std::string params;
     };
+
+    constexpr uint32_t BOOTSTRAP_ADDR = 0x01000001;
 }
 
 

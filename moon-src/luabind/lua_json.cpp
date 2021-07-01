@@ -51,7 +51,7 @@ using JsonPrettyWriter = rapidjson::PrettyWriter<StreamBuf>;
 
 using JsonReader = rapidjson::GenericReader<rapidjson::UTF8<>, rapidjson::UTF8<>, JsonAllocator>;
 
-static constexpr int max_depth = 64;
+static constexpr int max_depth = 32;
 
 namespace rapidjson
 {
@@ -192,7 +192,7 @@ static void encode_table(lua_State* L, Writer* writer, int idx, int depth, bool 
     {
         bool empty = true;
         lua_pushnil(L);
-        while (lua_next(L, -2))
+        while (lua_next(L, idx))
         {
             if (empty)
             {

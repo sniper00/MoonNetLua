@@ -47,19 +47,17 @@ namespace moon
 
         void accept(uint32_t fd, int32_t sessionid, uint32_t owner);
 
-        int connect(const std::string& host, uint16_t port, uint32_t owner, uint8_t type, int32_t sessionid, int32_t timeout = 0);
+        uint32_t connect(const std::string& host, uint16_t port, uint32_t owner, uint8_t type, int32_t sessionid, uint32_t millseconds = 0);
 
         void read(uint32_t fd, uint32_t owner, size_t n, std::string_view delim, int32_t sessionid);
 
         bool write(uint32_t fd, buffer_ptr_t data, buffer_flag flag = buffer_flag::none);
 
-        bool write_message(uint32_t fd, void* msg);
-
         bool close(uint32_t fd);
 
         void close_all();
 
-        bool settimeout(uint32_t fd, int v);
+        bool settimeout(uint32_t fd, uint32_t seconds);
 
         bool setnodelay(uint32_t fd);
 

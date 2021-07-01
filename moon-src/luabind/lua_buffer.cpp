@@ -49,11 +49,11 @@ static int cstr(lua_State* L)
 {
     auto buf = reinterpret_cast<buffer*>(lua_touserdata(L, 1));
     if (buf == NULL) { return luaL_error(L, "null buffer pointer"); }
-    int offset = 0;
+    size_t offset = 0;
     if (lua_type(L, 2) == LUA_TNUMBER)
     {
-        offset = static_cast<int>(lua_tointeger(L, 2));
-        if (offset > static_cast<int>(buf->size()))
+        offset = static_cast<size_t>(lua_tointeger(L, 2));
+        if (offset > buf->size())
         {
             return luaL_error(L, "out of range");
         }
@@ -68,7 +68,7 @@ static int read(lua_State* L)
     auto buf = reinterpret_cast<buffer*>(lua_touserdata(L, 1));
     if (buf == NULL) { return luaL_error(L, "null buffer pointer"); }
     auto count = static_cast<int>(luaL_checkinteger(L, 2));
-    if (count > static_cast<int>(buf->size()))
+    if (count<0 || count > static_cast<int>(buf->size()))
     {
         lua_pushboolean(L, 0);
         lua_pushstring(L, "out off index");
@@ -157,7 +157,7 @@ static int commit(lua_State* L)
 {
     auto buf = reinterpret_cast<buffer*>(lua_touserdata(L, 1));
     if (buf == NULL) { return luaL_error(L, "null buffer pointer"); }
-    auto n = static_cast<int64_t>(luaL_checkinteger(L, 2));
+    auto n = static_cast<size_t>(luaL_checkinteger(L, 2));
     if (0 == n) { return luaL_error(L, "Invalid buffer commit param"); }
     buf->commit(n);
     return 0;
@@ -167,7 +167,7 @@ static int prepare(lua_State* L)
 {
     auto buf = reinterpret_cast<buffer*>(lua_touserdata(L, 1));
     if (buf == NULL) { return luaL_error(L, "null buffer pointer"); }
-    auto n = static_cast<int64_t>(luaL_checkinteger(L, 2));
+    auto n = static_cast<size_t>(luaL_checkinteger(L, 2));
     if (0 == n) { return luaL_error(L, "Invalid buffer prepare param"); }
     buf->prepare(n);
     return 0;

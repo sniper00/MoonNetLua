@@ -29,17 +29,12 @@ namespace moon
                 expire_policy_type v;
                 {
                     std::lock_guard lock{ lock_ };
-                    if (auto iter = timers_.begin(); iter == timers_.end())
+                    if (auto iter = timers_.begin(); iter == timers_.end() || iter->first > now)
                     {
                         break;
                     }
                     else
                     {
-                        auto t = iter->first;
-                        if (t > now)
-                        {
-                            break;
-                        }
                         v = std::move(iter->second);
                         timers_.erase(iter);
                     }
@@ -49,22 +44,28 @@ namespace moon
             return;
         }
 
-        void stop_all_timer()
+        void pause()
         {
             stop_ = true;
         }
 
-        void start_all_timer()
+        void resume()
         {
             stop_ = false;
+        }
+
+        uint32_t make_timerid()
+        {
+            return ++timerid_;
         }
 
         template<typename... Args>
         uint32_t add(time_t expiretime, Args&&... args)
         {
             std::lock_guard lock{ lock_ };
-            timers_.emplace(expiretime, expire_policy_type{ ++timerid_, std::forward<Args>(args)... });
-            return timerid_;
+            auto id = ++timerid_;
+            timers_.emplace(expiretime, expire_policy_type{ id, std::forward<Args>(args)... });
+            return id;
         }
 
         size_t size() const
@@ -73,7 +74,7 @@ namespace moon
         }
     private:
         bool stop_ = false;
-        uint32_t timerid_ = 0;
+        std::atomic<uint32_t> timerid_ = 0;
         std::mutex lock_;
         std::multimap<int64_t, expire_policy_type> timers_;
     };
@@ -83,7 +84,7 @@ namespace moon
     public:
         using handler_type = std::function<void()>;
 
-        default_expire_policy(handler_type handler)
+        default_expire_policy(uint32_t, handler_type handler)
             :handler_(std::move(handler))
         {
         }
